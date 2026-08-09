@@ -173,28 +173,40 @@ body{
 
 /* ── READING PANEL ── */
 #reading-panel{
-  max-width:700px;width:92%;
+  max-width:860px;width:95%;
   background:var(--dialog-bg);
   border:1px solid var(--gold);
   border-radius:16px;
-  padding:32px 40px;
+  padding:32px 36px;
   backdrop-filter:blur(12px);
   box-shadow:0 0 60px rgba(155,127,212,.2);
 }
 .reading-header{
-  display:flex;align-items:center;gap:20px;
+  display:grid;
+  grid-template-columns:190px 1fr;
+  gap:28px;
+  align-items:start;
   margin-bottom:24px;
   padding-bottom:20px;
   border-bottom:1px solid rgba(201,168,76,.25);
 }
 .reading-card-img{
-  width:80px;height:140px;
-  border-radius:8px;border:2px solid var(--gold);
+  width:190px;height:332px;
+  border-radius:10px;border:2px solid var(--gold);
   object-fit:cover;object-position:top;
-  flex-shrink:0;
+  box-shadow:0 0 30px rgba(201,168,76,.25);
+  display:block;
 }
 .reading-card-img.reversed{transform:rotate(180deg)}
-.reading-meta{flex:1}
+.card-fallback{
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Cinzel','Cormorant Garamond',serif;
+  color:var(--gold2);font-size:.85rem;text-align:center;
+  background:rgba(26,9,51,.8);
+  border:2px solid var(--gold);border-radius:10px;
+  padding:12px;letter-spacing:.08em;
+}
+.reading-meta{flex:1;padding-top:4px}
 .reading-card-name{
   font-family:'Cinzel','Cormorant Garamond',serif;
   color:var(--gold2);font-size:1.05rem;margin-bottom:4px;
@@ -387,8 +399,8 @@ body{
 @media(max-width:520px){
   .dialog{padding:28px 24px}
   .card-wrap{width:95px;height:166px}
-  .reading-header{flex-direction:column;text-align:center}
-  .reading-card-img{width:70px;height:122px}
+  .reading-header{grid-template-columns:1fr;text-align:center}
+  .reading-card-img{width:130px;height:228px;margin:0 auto}
   .register-box{padding:24px 20px}
   .form-row{grid-template-columns:1fr}
   #reading-panel{padding:24px 20px}
@@ -1142,7 +1154,15 @@ async function renderReading(idx) {
   const img = document.getElementById('rc-img');
   img.src = dc.card.file;
   img.className = 'reading-card-img' + (dc.reversed ? ' reversed' : '');
-  img.onerror = function() { this.style.display = 'none'; };
+  img.style.display = 'block';
+  img.onerror = function() {
+    this.src = '';
+    this.style.display = 'none';
+    const fallback = document.createElement('div');
+    fallback.className = 'reading-card-img card-fallback';
+    fallback.textContent = dc.card.name;
+    this.parentNode.insertBefore(fallback, this);
+  };
 
   document.getElementById('rc-name').textContent = `${dc.card.name}  ${dc.card.num}`;
   document.getElementById('rc-dir').textContent = dc.reversed ? '▼ 역방향 (Reversed)' : '▲ 정방향 (Upright)';
