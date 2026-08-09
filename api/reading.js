@@ -41,12 +41,12 @@ ${cardLines}
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.85,
       }),
     });
 
     if (!resp.ok) {
       const err = await resp.text();
+      console.error('[reading] OpenAI error', resp.status, err);
       return res.status(resp.status).json({ error: err });
     }
 
