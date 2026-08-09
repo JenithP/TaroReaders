@@ -1048,7 +1048,7 @@ function revealCardsSequentially() {
         <div class="card-inner">
           <div class="card-back"><div class="card-back-design">✦</div></div>
           <div class="card-face${dc.reversed?' reversed':''}">
-            <img src="${dc.card.file}" alt="${dc.card.name}" onerror="this.style.display='none';this.parentElement.style.background='#1a0933';this.parentElement.style.display='flex';this.parentElement.style.alignItems='center';this.parentElement.style.justifyContent='center';this.parentElement.innerHTML+='<span style=color:#c9a84c;font-size:.6rem;text-align:center;padding:8px>${dc.card.name}</span>'">
+            <img src="${dc.card.file}" alt="${dc.card.name}" onerror="this.onerror=null;this.style.display='none';">
             <div class="card-name-tag">${dc.card.name}${dc.reversed?' ↓':''}</div>
           </div>
         </div>
@@ -1155,13 +1155,14 @@ async function renderReading(idx) {
   img.src = dc.card.file;
   img.className = 'reading-card-img' + (dc.reversed ? ' reversed' : '');
   img.style.display = 'block';
+  document.querySelectorAll('.card-fallback').forEach(el => el.remove());
   img.onerror = function() {
-    this.src = '';
+    this.onerror = null;
     this.style.display = 'none';
     const fallback = document.createElement('div');
     fallback.className = 'reading-card-img card-fallback';
     fallback.textContent = dc.card.name;
-    this.parentNode.insertBefore(fallback, this);
+    if (this.parentNode) this.parentNode.insertBefore(fallback, this);
   };
 
   document.getElementById('rc-name').textContent = `${dc.card.name}  ${dc.card.num}`;
