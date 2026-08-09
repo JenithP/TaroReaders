@@ -1122,7 +1122,10 @@ async function callGPT() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cards, userName }),
     });
-    if (!resp.ok) throw new Error(`API ${resp.status}`);
+    if (!resp.ok) {
+      const errBody = await resp.text();
+      throw new Error(`API ${resp.status}: ${errBody}`);
+    }
     gptReadings = await resp.json();
   } catch(e) {
     console.warn('GPT 리딩 실패, 기본 해석 사용:', e.message);
