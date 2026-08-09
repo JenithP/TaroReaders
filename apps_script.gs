@@ -44,8 +44,8 @@ function writeToSheet(data) {
 
   // 헤더가 없으면 첫 행에 추가
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['접수시간', '이름', '전화번호', '출생연도', '거주지역', '타로결과', '리딩일시']);
-    sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#1a0933').setFontColor('#c9a84c');
+    sheet.appendRow(['접수시간', '이름', '전화번호', '출생연도', '거주지역', '카드결과', '과거 리딩', '현재 리딩', '미래 리딩', '리딩일시']);
+    sheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#1a0933').setFontColor('#c9a84c');
   }
 
   sheet.appendRow([
@@ -55,6 +55,9 @@ function writeToSheet(data) {
     data.birth       || '',
     data.region      || '',
     data.tarotResult || '',
+    data.gptPast     || '',
+    data.gptPresent  || '',
+    data.gptFuture   || '',
     data.readingDate || '',
   ]);
 }

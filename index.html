@@ -1256,6 +1256,9 @@ function submitForm(e) {
     tarotResult: drawnCards.map((dc, i) =>
       `${POSITIONS[i].label}: ${dc.card.name}(${dc.reversed ? '역' : '정'})`
     ).join(' | '),
+    gptPast:    (gptReadings && gptReadings.past)    || '',
+    gptPresent: (gptReadings && gptReadings.present) || '',
+    gptFuture:  (gptReadings && gptReadings.future)  || '',
     readingDate: new Date().toLocaleString('ko-KR', {timeZone:'Asia/Seoul'}),
   };
 
