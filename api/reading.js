@@ -1,8 +1,19 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { cards, userName } = req.body;
-  if (!cards || cards.length !== 3) return res.status(400).json({ error: 'cards required' });
+  // Vercel에서 req.body가 파싱 안 될 경우 대비
+  let body = req.body;
+  if (!body || typeof body === 'string') {
+    try { body = JSON.parse(body || '{}'); } catch { body = {}; }
+  }
+
+  const { cards, userName } = body;
+  console.log('[reading] cards:', cards?.length, 'user:', userName);
+
+  if (!cards || cards.length !== 3) {
+    console.error('[reading] invalid cards:', cards);
+    return res.status(400).json({ error: 'cards required', received: cards });
+  }
 
   const posLabels = ['과거', '현재', '미래'];
   const cardLines = cards.map((c, i) =>
@@ -41,6 +52,8 @@ ${cardLines}
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
+        temperature: 0.85,
       }),
     });
 
@@ -52,13 +65,12 @@ ${cardLines}
 
     const data = await resp.json();
     const raw = data.choices[0].message.content;
-
-    // JSON 블록만 추출 (```json ... ``` 감싸인 경우도 처리)
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('JSON 파싱 실패: ' + raw.slice(0, 100));
     const readings = JSON.parse(jsonMatch[0]);
     res.json(readings);
   } catch (e) {
+    console.error('[reading] catch:', e.message);
     res.status(500).json({ error: e.message });
   }
 }
