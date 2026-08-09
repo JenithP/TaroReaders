@@ -316,6 +316,29 @@ body{
   font-size:.72rem;color:rgba(232,223,200,.4);
   text-align:center;margin-top:12px;line-height:1.7;
 }
+.privacy-wrap{margin:16px 0 4px;padding:14px 16px;border:1px solid rgba(155,127,212,.3);border-radius:10px;background:rgba(255,255,255,.03)}
+.privacy-label{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.privacy-label input[type=checkbox]{position:absolute;opacity:0;width:0;height:0}
+.privacy-check-box{
+  flex-shrink:0;width:18px;height:18px;margin-top:2px;
+  border:1px solid var(--gold);border-radius:4px;
+  background:rgba(255,255,255,.05);transition:all .2s;
+  display:flex;align-items:center;justify-content:center;
+}
+.privacy-label input:checked ~ .privacy-check-box{background:var(--gold);color:#060212}
+.privacy-label input:checked ~ .privacy-check-box::after{content:'✓';font-size:12px;color:#060212;font-weight:700}
+.privacy-text{font-size:.82rem;line-height:1.6;color:var(--text)}
+.privacy-detail-btn{
+  background:none;border:none;color:var(--accent);
+  font-size:.75rem;cursor:pointer;padding:0 4px;
+  font-family:'Hahmlet','Nanum Myeongjo',serif;
+}
+.privacy-detail{
+  display:none;margin-top:10px;padding:10px 12px;
+  background:rgba(0,0,0,.3);border-radius:6px;
+  font-size:.72rem;line-height:1.8;color:rgba(232,223,200,.65);
+}
+.privacy-detail.open{display:block}
 .submit-btn{
   width:100%;padding:14px;margin-top:8px;
   border:1px solid var(--gold);border-radius:40px;
@@ -406,11 +429,6 @@ body{
       <div class="dialog-text" id="name-dialog-text"></div>
       <div class="input-wrap">
         <input class="name-input" id="user-name-input" type="text" placeholder="실명을 입력해주세요" maxlength="20">
-        <div class="api-key-wrap">
-          <div class="api-key-label">✦ GPT 맞춤 리딩 (선택)</div>
-          <input class="name-input api-key-input" id="openai-key-input" type="password" placeholder="OpenAI API Key (sk-...)" autocomplete="off">
-          <div class="api-key-hint">입력 시 AI가 세 카드를 종합해 개인 맞춤 리딩을 생성합니다</div>
-        </div>
         <button class="btn" style="margin-top:20px" onclick="startReading()">카드를 펼쳐주세요</button>
       </div>
     </div>
@@ -491,11 +509,24 @@ body{
             <option>중랑구</option><option>기타 지역</option>
           </select>
         </div>
-        <button type="submit" class="submit-btn">카카오톡으로 리딩 결과 & 이벤트 안내 받기</button>
-        <div class="form-notice">
-          수집된 정보는 별빛타로 리딩 결과 전송 및 동아리 이벤트 안내에만 사용됩니다.<br>
-          제3자 제공 및 마케팅 목적으로 활용되지 않습니다.
+        <div class="privacy-wrap">
+          <label class="privacy-label">
+            <input type="checkbox" id="f-privacy" required>
+            <span class="privacy-check-box"></span>
+            <span class="privacy-text">
+              <strong>[필수]</strong> 개인정보 수집 및 이용에 동의합니다.
+              <button type="button" class="privacy-detail-btn" onclick="togglePrivacy()">내용 보기 ▾</button>
+            </span>
+          </label>
+          <div class="privacy-detail" id="privacy-detail">
+            <strong>수집 항목:</strong> 이름, 전화번호, 출생연도, 거주 지역<br>
+            <strong>수집 목적:</strong> 타로 리딩 결과 전송, 별빛타로 동아리 이벤트 안내<br>
+            <strong>보유 기간:</strong> 동아리 활동 종료 시 또는 본인 요청 시까지<br>
+            <strong>제3자 제공:</strong> 없음 / <strong>마케팅 활용:</strong> 없음<br>
+            <span style="color:rgba(232,223,200,.5)">동의를 거부할 권리가 있으나, 거부 시 서비스 이용이 제한됩니다.</span>
+          </div>
         </div>
+        <button type="submit" class="submit-btn">카카오톡으로 리딩 결과 & 이벤트 안내 받기</button>
       </form>
       <div class="success-msg" id="success-msg">
         <div class="big">🌟</div>
@@ -774,7 +805,6 @@ const ALL_CARDS = [
 let userName = '';
 let drawnCards = []; // {card, reversed, position}
 let currentReadingIdx = 0;
-let openaiApiKey = '';
 let gptReadings = null;   // {past, present, future}
 let gptReadingPromise = null;
 const POSITIONS = [
@@ -873,12 +903,6 @@ window.addEventListener('DOMContentLoaded', () => {
   tick();
   spawnOrbs();
 
-  // Pre-fill saved API key
-  const savedKey = localStorage.getItem('oai_key');
-  if (savedKey) {
-    const keyEl = document.getElementById('openai-key-input');
-    if (keyEl) keyEl.value = savedKey;
-  }
 });
 
 function spawnOrbs() {
@@ -1052,13 +1076,8 @@ function startReading() {
   const nameEl = document.getElementById('user-name-input');
   userName = nameEl.value.trim() || '여행자';
 
-  const keyEl = document.getElementById('openai-key-input');
-  openaiApiKey = (keyEl && keyEl.value.trim()) || localStorage.getItem('oai_key') || '';
-  if (openaiApiKey) {
-    localStorage.setItem('oai_key', openaiApiKey);
-    gptReadings = null;
-    gptReadingPromise = callGPT();
-  }
+  gptReadings = null;
+  gptReadingPromise = callGPT();
 
   // Flip all 3 cards
   drawnCards.forEach((dc, i) => {
@@ -1080,40 +1099,19 @@ function startReading() {
 
 async function callGPT() {
   try {
-    const posKeys = ['past','present','future'];
-    const posLabels = ['과거','현재','미래'];
-    const cardLines = drawnCards.map((dc, i) =>
-      `${posLabels[i]}: ${dc.card.name} (${dc.reversed ? '역방향':'정방향'}) — ${dc.reversed ? dc.card.rk : dc.card.uk}`
-    ).join('\n');
-
-    const prompt = `당신은 경험 많은 한국 타로 리더입니다. 아래 3카드 스프레드를 보고 각 포지션에 대한 타로 리딩을 작성해주세요.
-
-질문자: ${userName}
-${cardLines}
-
-각 카드에 대해 구체적이고 실생활에 적용 가능한 한국어 리딩을 3-4문장으로 작성해주세요.
-직장·연애·금전·인간관계 등 현실적인 맥락에서 이야기하고, 실천 가능한 조언을 포함해주세요.
-추상적이거나 뜬구름 잡는 표현은 피해주세요.
-
-아래 JSON 형식으로만 응답해주세요 (다른 텍스트 없이):
-{"past":"...","present":"...","future":"..."}`;
-
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    const cards = drawnCards.map(dc => ({
+      name: dc.card.name,
+      reversed: dc.reversed,
+      uk: dc.card.uk,
+      rk: dc.card.rk,
+    }));
+    const resp = await fetch('/api/reading', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiApiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-5',
-        messages: [{role:'user', content: prompt}],
-        response_format: {type:'json_object'},
-        temperature: 0.85,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cards, userName }),
     });
     if (!resp.ok) throw new Error(`API ${resp.status}`);
-    const data = await resp.json();
-    gptReadings = JSON.parse(data.choices[0].message.content);
+    gptReadings = await resp.json();
   } catch(e) {
     console.warn('GPT 리딩 실패, 기본 해석 사용:', e.message);
     gptReadings = null;
@@ -1218,6 +1216,10 @@ function goRegister() {
 ═══════════════════════════════════════ */
 // ★ Apps Script 배포 후 아래 URL을 교체하세요
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzqLOviOG2LZWfFrGtyv_W_Zl6T-SwkL-DKZzSNDAsZuxoAiooaIiIGWPA7efshANHh/exec';
+
+function togglePrivacy() {
+  document.getElementById('privacy-detail').classList.toggle('open');
+}
 
 function submitForm(e) {
   e.preventDefault();
