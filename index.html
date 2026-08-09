@@ -1186,7 +1186,7 @@ async function renderReading(idx) {
   const btnNext = document.getElementById('btn-next-card');
 
   if (gptReadingPromise) {
-    bodyEl.innerHTML = `${intro}<div class="gpt-loading">✦ GPT가 맞춤 리딩을 생성하고 있습니다...</div>`;
+    bodyEl.innerHTML = `${intro}<div class="gpt-loading">✦ 카드를 해석하고 있어요. 잠시만 기다려주세요...</div>`;
     btnNext.disabled = true;
     btnNext.style.opacity = '.4';
     await gptReadingPromise;
