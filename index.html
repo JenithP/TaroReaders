@@ -9,12 +9,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Cinzel:wght@400;600&family=Nanum+Myeongjo:wght@400;700&family=Hahmlet:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+html{font-size:110%}
 :root{
   --gold:#c9a84c;--gold2:#e8d08a;--purple:#1a0933;--purple2:#2d1054;
-  --dialog-bg:rgba(10,4,26,0.92);--text:#e8dfc8;--accent:#9b7fd4;
+  --dialog-bg:rgba(14,6,32,0.93);--text:#e8dfc8;--accent:#9b7fd4;
 }
 body{
-  background:#060212;color:var(--text);
+  background:#100828;color:var(--text);
   font-family:'Hahmlet','Nanum Myeongjo',serif;
   min-height:100vh;overflow-x:hidden;
 }
@@ -423,7 +424,33 @@ body{
     <div class="dialog-title">✦ 타로 리딩 ✦</div>
     <div class="dialog-text" id="intro-text"></div>
     <div class="btn-center">
-      <button class="btn" id="btn-start" style="display:none" onclick="startShuffle()">시작하기</button>
+      <button class="btn" id="btn-start" style="display:none" onclick="showInfoSection()">시작하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INFO ══ -->
+<div class="section" id="section-info">
+  <div class="dialog" style="max-width:480px">
+    <div class="dialog-title">✦ 당신에 대해 알려주세요 ✦</div>
+    <div class="dialog-text" style="min-height:auto;margin-bottom:4px;font-size:.88rem">
+      카드를 섞기 전에, 당신에 대해 조금 알려주세요.<br><br>
+      <span class="highlight">생년월일</span>과 <span class="highlight">질문</span>은 타로의 기운이 당신에게 온전히 집중되도록 도와줍니다.
+    </div>
+    <div class="input-wrap">
+      <div class="input-field-group">
+        <div class="input-field-label">성함</div>
+        <input class="name-input" id="user-name-input" type="text" placeholder="실명을 입력해주세요" maxlength="20" style="margin-top:0">
+      </div>
+      <div class="input-field-group">
+        <div class="input-field-label">생년월일</div>
+        <input class="name-input" id="user-birth-input" type="date" style="margin-top:0">
+      </div>
+      <div class="input-field-group">
+        <div class="input-field-label">오늘의 질문 (한 문장)</div>
+        <input class="name-input question-input" id="user-question-input" type="text" placeholder="지금 가장 궁금한 것을 한 문장으로..." maxlength="100">
+      </div>
+      <button class="btn" style="margin-top:22px" onclick="beginShuffle()">카드를 섞겠습니다</button>
     </div>
   </div>
 </div>
@@ -435,30 +462,14 @@ body{
   </div>
 </div>
 
-<!-- ══ CARDS APPEAR + NAME INPUT ══ -->
+<!-- ══ CARDS APPEAR ══ -->
 <div class="section" id="section-cards">
   <div id="card-table">
     <div class="positions-row" id="positions-row">
       <!-- cards injected by JS -->
     </div>
-    <div class="dialog" id="name-dialog" style="display:none;max-width:480px">
-      <div class="dialog-title">✦ 당신에 대해 알려주세요 ✦</div>
-      <div class="dialog-text" id="name-dialog-text"></div>
-      <div class="input-wrap">
-        <div class="input-field-group">
-          <div class="input-field-label">성함</div>
-          <input class="name-input" id="user-name-input" type="text" placeholder="실명을 입력해주세요" maxlength="20" style="margin-top:0">
-        </div>
-        <div class="input-field-group">
-          <div class="input-field-label">생년월일</div>
-          <input class="name-input" id="user-birth-input" type="date" style="margin-top:0">
-        </div>
-        <div class="input-field-group">
-          <div class="input-field-label">오늘의 질문 (한 문장)</div>
-          <input class="name-input question-input" id="user-question-input" type="text" placeholder="지금 가장 궁금한 것을 한 문장으로..." maxlength="100">
-        </div>
-        <button class="btn" style="margin-top:22px" onclick="startReading()">카드를 펼쳐주세요</button>
-      </div>
+    <div id="reveal-btn-wrap" style="display:none;justify-content:center;margin-top:24px;opacity:0;transition:opacity .7s">
+      <button class="btn" onclick="startReading()">카드를 펼쳐봅니다</button>
     </div>
   </div>
 </div>
@@ -954,6 +965,23 @@ function spawnOrbs() {
 }
 
 /* ═══════════════════════════════════════
+   INFO SECTION → SHUFFLE
+═══════════════════════════════════════ */
+function showInfoSection() {
+  fadeTransition(() => showSection('section-info'));
+}
+
+function beginShuffle() {
+  const nameEl = document.getElementById('user-name-input');
+  const birthEl = document.getElementById('user-birth-input');
+  const questionEl = document.getElementById('user-question-input');
+  userName = nameEl.value.trim() || '여행자';
+  userBirth = birthEl ? birthEl.value.trim() : '';
+  userQuestion = questionEl ? questionEl.value.trim() : '';
+  startShuffle();
+}
+
+/* ═══════════════════════════════════════
    SHUFFLE
 ═══════════════════════════════════════ */
 function startShuffle() {
@@ -1084,18 +1112,13 @@ function revealCardsSequentially() {
     }, i * 400 + 100);
   });
 
-  // Show name dialog after cards appear
+  // Show reveal button after cards appear
   setTimeout(() => {
-    const d = document.getElementById('name-dialog');
-    d.style.display = 'block';
-    d.style.opacity = '0';
-    d.style.transition = 'opacity .6s';
-    setTimeout(() => { d.style.opacity = '1'; }, 50);
-    typewrite(
-      document.getElementById('name-dialog-text'),
-      '아래 세 가지를 알려주시면 더 깊은 리딩을 드릴 수 있어요.<br><br><span class="highlight">생년월일</span>은 사주 에너지와 결합해 해석하는 데 쓰이고,<br><span class="highlight">질문</span>은 카드가 당신의 상황에 집중하도록 안내해줍니다.',
-      30
-    );
+    const wrap = document.getElementById('reveal-btn-wrap');
+    if (wrap) {
+      wrap.style.display = 'flex';
+      setTimeout(() => { wrap.style.opacity = '1'; }, 50);
+    }
   }, 1600);
 }
 
@@ -1103,13 +1126,7 @@ function revealCardsSequentially() {
    START READING
 ═══════════════════════════════════════ */
 function startReading() {
-  const nameEl = document.getElementById('user-name-input');
-  const birthEl = document.getElementById('user-birth-input');
-  const questionEl = document.getElementById('user-question-input');
-  userName = nameEl.value.trim() || '여행자';
-  userBirth = birthEl ? birthEl.value.trim() : '';
-  userQuestion = questionEl ? questionEl.value.trim() : '';
-
+  // name/birth/question already captured in beginShuffle()
   gptReadings = null;
   gptReadingPromise = callGPT();
 
@@ -1337,6 +1354,8 @@ function skipRegister() {
     if (birthInput) birthInput.value = '';
     const questionInput = document.getElementById('user-question-input');
     if (questionInput) questionInput.value = '';
+    const revealWrap = document.getElementById('reveal-btn-wrap');
+    if (revealWrap) { revealWrap.style.display = 'none'; revealWrap.style.opacity = '0'; }
 
     // Restart intro typewriter
     setTimeout(() => {
