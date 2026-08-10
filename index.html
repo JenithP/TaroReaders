@@ -278,7 +278,12 @@ body{
 }
 .name-input::placeholder{color:rgba(232,223,200,.35)}
 .name-input:focus{border-color:var(--gold2);box-shadow:0 0 12px rgba(201,168,76,.2)}
+.name-input[type="date"]{color:var(--text);text-align:center;cursor:pointer}
+.name-input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.6) sepia(1) saturate(2) hue-rotate(10deg);cursor:pointer}
 .input-wrap{display:flex;flex-direction:column;align-items:center}
+.input-field-group{width:100%;max-width:300px;margin-top:14px}
+.input-field-label{font-size:.68rem;letter-spacing:.13em;color:var(--accent);margin-bottom:4px;padding-left:2px}
+.question-input{max-width:300px;text-align:left;padding-left:14px;margin-top:0}
 .api-key-wrap{width:100%;max-width:300px;margin-top:18px;text-align:center}
 .api-key-label{font-size:.72rem;letter-spacing:.1em;color:var(--accent);margin-bottom:6px}
 .api-key-input{font-size:.82rem;margin-top:0;border-color:rgba(155,127,212,.5)}
@@ -437,11 +442,22 @@ body{
       <!-- cards injected by JS -->
     </div>
     <div class="dialog" id="name-dialog" style="display:none;max-width:480px">
-      <div class="dialog-title">✦ 당신의 이름을 알려주세요 ✦</div>
+      <div class="dialog-title">✦ 당신에 대해 알려주세요 ✦</div>
       <div class="dialog-text" id="name-dialog-text"></div>
       <div class="input-wrap">
-        <input class="name-input" id="user-name-input" type="text" placeholder="실명을 입력해주세요" maxlength="20">
-        <button class="btn" style="margin-top:20px" onclick="startReading()">카드를 펼쳐주세요</button>
+        <div class="input-field-group">
+          <div class="input-field-label">성함</div>
+          <input class="name-input" id="user-name-input" type="text" placeholder="실명을 입력해주세요" maxlength="20" style="margin-top:0">
+        </div>
+        <div class="input-field-group">
+          <div class="input-field-label">생년월일</div>
+          <input class="name-input" id="user-birth-input" type="date" style="margin-top:0">
+        </div>
+        <div class="input-field-group">
+          <div class="input-field-label">오늘의 질문 (한 문장)</div>
+          <input class="name-input question-input" id="user-question-input" type="text" placeholder="지금 가장 궁금한 것을 한 문장으로..." maxlength="100">
+        </div>
+        <button class="btn" style="margin-top:22px" onclick="startReading()">카드를 펼쳐주세요</button>
       </div>
     </div>
   </div>
@@ -815,6 +831,8 @@ const ALL_CARDS = [
    GAME STATE
 ═══════════════════════════════════════ */
 let userName = '';
+let userBirth = '';
+let userQuestion = '';
 let drawnCards = []; // {card, reversed, position}
 let currentReadingIdx = 0;
 let gptReadings = null;   // {past, present, future}
@@ -1075,7 +1093,7 @@ function revealCardsSequentially() {
     setTimeout(() => { d.style.opacity = '1'; }, 50);
     typewrite(
       document.getElementById('name-dialog-text'),
-      '이제 당신의 질문에 대해 하나씩 답해볼게요.<br><br>내가 당신을 뭐라고 부르면 될까요?<br>정확한 해석을 위해 가급적 <span class="highlight">실명</span>을 넣어주세요.',
+      '아래 세 가지를 알려주시면 더 깊은 리딩을 드릴 수 있어요.<br><br><span class="highlight">생년월일</span>은 사주 에너지와 결합해 해석하는 데 쓰이고,<br><span class="highlight">질문</span>은 카드가 당신의 상황에 집중하도록 안내해줍니다.',
       30
     );
   }, 1600);
@@ -1086,7 +1104,11 @@ function revealCardsSequentially() {
 ═══════════════════════════════════════ */
 function startReading() {
   const nameEl = document.getElementById('user-name-input');
+  const birthEl = document.getElementById('user-birth-input');
+  const questionEl = document.getElementById('user-question-input');
   userName = nameEl.value.trim() || '여행자';
+  userBirth = birthEl ? birthEl.value.trim() : '';
+  userQuestion = questionEl ? questionEl.value.trim() : '';
 
   gptReadings = null;
   gptReadingPromise = callGPT();
@@ -1120,7 +1142,7 @@ async function callGPT() {
     const resp = await fetch('/api/reading', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cards, userName }),
+      body: JSON.stringify({ cards, userName, userBirth, userQuestion }),
     });
     if (!resp.ok) {
       const errBody = await resp.text();
@@ -1304,11 +1326,17 @@ function skipRegister() {
     // Reset
     drawnCards = [];
     userName = '';
+    userBirth = '';
+    userQuestion = '';
     currentReadingIdx = 0;
     document.getElementById('intro-text').innerHTML = '';
     document.getElementById('btn-start').style.display = 'none';
     const nameInput = document.getElementById('user-name-input');
     if (nameInput) nameInput.value = '';
+    const birthInput = document.getElementById('user-birth-input');
+    if (birthInput) birthInput.value = '';
+    const questionInput = document.getElementById('user-question-input');
+    if (questionInput) questionInput.value = '';
 
     // Restart intro typewriter
     setTimeout(() => {
