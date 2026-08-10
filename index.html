@@ -29,6 +29,7 @@ body{
   display:flex;align-items:center;justify-content:center;
   z-index:10;opacity:0;pointer-events:none;
   transition:opacity .8s ease;
+  overflow-y:auto;
 }
 .section.active{opacity:1;pointer-events:all}
 
@@ -403,6 +404,7 @@ body{
 
 /* ── responsive ── */
 @media(max-width:520px){
+  .section{align-items:flex-start;padding:20px 0 40px}
   .dialog{padding:28px 24px}
   .card-wrap{width:95px;height:166px}
   .reading-header{grid-template-columns:1fr;text-align:center}
@@ -410,6 +412,7 @@ body{
   .register-box{padding:24px 20px}
   .form-row{grid-template-columns:1fr}
   #reading-panel{padding:24px 20px}
+  #card-table{padding:20px 12px}
 }
 </style>
 </head>
