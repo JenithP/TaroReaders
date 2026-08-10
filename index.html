@@ -514,31 +514,46 @@ body{
   <div class="register-box">
     <div class="register-title">✦ 별빛타로 동아리 안내 ✦</div>
     <div class="register-sub" id="register-sub"></div>
+
+    <!-- 카카오 채널 추가 (메인 CTA) -->
+    <div style="text-align:center;margin:24px 0 8px">
+      <a href="http://pf.kakao.com/_EDIiX/friend" target="_blank"
+         style="display:inline-flex;align-items:center;gap:10px;
+                background:#FEE500;color:#191919;
+                padding:14px 28px;border-radius:10px;
+                font-family:'Hahmlet',sans-serif;font-size:1rem;font-weight:700;
+                text-decoration:none;transition:opacity .2s;box-shadow:0 4px 20px rgba(254,229,0,.3)"
+         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+          <path d="M10 2C5.58 2 2 4.91 2 8.5c0 2.3 1.4 4.32 3.5 5.5L4.5 18l4.2-2.8c.42.06.86.1 1.3.1 4.42 0 8-2.91 8-6.5S14.42 2 10 2z" fill="#191919"/>
+        </svg>
+        카카오톡으로 리딩 결과 받기
+      </a>
+    </div>
+
+    <!-- 선택사항 폼 -->
     <div id="form-wrap">
-      <!--
-        연동 방법: Google Forms에서 폼을 만드신 후
-        action 값을 Google Form 제출 URL로 교체하세요.
-        (예: https://docs.google.com/forms/d/e/XXXXX/formResponse)
-        또는 Formspree: https://formspree.io/f/YOUR_ID
-      -->
+      <div style="text-align:center;margin:20px 0 12px;font-size:.75rem;color:rgba(232,223,200,.35);letter-spacing:.08em">
+        ── 이벤트 안내를 원하시면 아래 정보를 남겨주세요 (선택) ──
+      </div>
       <form id="info-form" onsubmit="submitForm(event)">
         <div class="form-group">
           <label>이름</label>
-          <input type="text" id="f-name" placeholder="실명을 입력해주세요" required>
+          <input type="text" id="f-name" placeholder="실명을 입력해주세요">
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>전화번호</label>
-            <input type="tel" id="f-phone" placeholder="010-0000-0000" required>
+            <input type="tel" id="f-phone" placeholder="010-0000-0000">
           </div>
           <div class="form-group">
             <label>출생연도</label>
-            <input type="number" id="f-birth" placeholder="예: 1998" min="1940" max="2010" required>
+            <input type="number" id="f-birth" placeholder="예: 1998" min="1940" max="2010">
           </div>
         </div>
         <div class="form-group">
           <label>거주 지역 (서울)</label>
-          <select id="f-region" required>
+          <select id="f-region">
             <option value="">-- 선택해주세요 --</option>
             <option>강남구</option><option>강동구</option><option>강북구</option>
             <option>강서구</option><option>관악구</option><option>광진구</option>
@@ -553,7 +568,7 @@ body{
         </div>
         <div class="privacy-wrap">
           <label class="privacy-label">
-            <input type="checkbox" id="f-privacy" required>
+            <input type="checkbox" id="f-privacy">
             <span class="privacy-check-box"></span>
             <span class="privacy-text">
               <strong>[필수]</strong> 개인정보 수집 및 이용에 동의합니다.
@@ -568,27 +583,12 @@ body{
             <span style="color:rgba(232,223,200,.5)">동의를 거부할 권리가 있으나, 거부 시 서비스 이용이 제한됩니다.</span>
           </div>
         </div>
-        <button type="submit" class="submit-btn">카카오톡으로 리딩 결과 & 이벤트 안내 받기</button>
+        <button type="submit" class="submit-btn">정보 제출하기</button>
       </form>
       <div class="success-msg" id="success-msg">
         <div class="big">🌟</div>
         <strong>감사합니다!</strong><br>
-        아래 버튼으로 채널을 추가해두시면<br>
-        리딩 결과와 이벤트 소식을 카카오톡으로 보내드려요.
-        <div style="margin-top:20px">
-          <a href="http://pf.kakao.com/_EDIiX/friend" target="_blank"
-             style="display:inline-flex;align-items:center;gap:8px;
-                    background:#FEE500;color:#191919;
-                    padding:12px 24px;border-radius:8px;
-                    font-family:'Hahmlet',sans-serif;font-size:.9rem;font-weight:600;
-                    text-decoration:none;transition:opacity .2s"
-             onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2C5.58 2 2 4.91 2 8.5c0 2.3 1.4 4.32 3.5 5.5L4.5 18l4.2-2.8c.42.06.86.1 1.3.1 4.42 0 8-2.91 8-6.5S14.42 2 10 2z" fill="#191919"/>
-            </svg>
-            카카오톡 채널 추가하기
-          </a>
-        </div>
+        이벤트 소식을 보내드릴게요.
       </div>
     </div>
     <div class="skip-link" onclick="skipRegister()">괜찮습니다, 다음에 할게요</div>
