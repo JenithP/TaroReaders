@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   const { cards, userName, userBirth, userQuestion } = body;
-  console.log('[reading] cards:', cards?.length, 'user:', userName, 'birth:', userBirth, 'q:', userQuestion);
+  console.log('[reading] cards:', cards?.length, 'q:', userQuestion ? 'yes' : 'no');
 
   if (!cards || cards.length !== 3) {
     console.error('[reading] invalid cards:', cards);
@@ -20,16 +20,18 @@ export default async function handler(req, res) {
   ).join('\n');
 
   const birthLine = userBirth
-    ? `생년월일: ${userBirth}\n이 날에 태어난 분이 지닌 고유한 타로적 기운과 에너지의 흐름을 읽어, 카드 해석과 자연스럽게 연결해주세요.`
+    ? `생년월일: ${userBirth}\n태어난 계절이나 숫자의 흐름을 한 문장 정도로만 가볍게 엮어주세요.`
     : '';
 
   const questionLine = userQuestion
     ? `오늘의 질문: "${userQuestion}"\n세 카드의 흐름이 이 질문에 대한 실질적인 답이 되도록 구성해주세요.`
     : '';
 
-  const prompt = `당신은 30년 경력의 한국 타로 마스터입니다. 라이더 웨이트 타로의 상징 체계와 신비로운 직관으로 깊고 실질적인 리딩을 제공합니다.
+  const who = userName || '여행자';
 
-질문자: ${userName || '여행자'}님
+  const prompt = `당신은 별빛타로의 타로 리더입니다. 라이더 웨이트 타로의 상징 체계로 읽되, "잘 맞히는 사람"이 아니라 "질문자 편에서 같이 들여다보는 사람"의 자리에서 이야기합니다.
+
+질문자: ${who}님
 ${birthLine}
 ${questionLine}
 
@@ -38,30 +40,26 @@ ${cardLines}
 
 【리딩 작성 지침】
 
-말투와 문체:
-- 실제 타로 상담가가 내담자와 마주 앉아 이야기하듯 따뜻하고 신비로운 말투
-- "~하고 있군요", "~네요", "~보이는군요", "~이 느껴집니다" 같은 자연스럽고 살아있는 종결어미
-- ${userName || '여행자'}님이라고 직접 호칭하며 친근하고 진심 어린 어조로
-- 뜬구름 잡는 표현 금지. 신비롭되 구체적이고 현실에 발 디딘 리딩
+말투:
+- 마주 앉아 이야기하듯 따뜻하고 차분하게. "~이 보여요", "~해보면 어떨까요" 같은 자연스러운 종결어미
+- ${who}님이라고 직접 부르며, 단정하거나 맞히려 하지 말고 "이런 흐름이 보이는데, 어떠세요?"처럼 여지를 남길 것
+- 어려운 카드도 겁주지 말 것. "조심하세요"가 아니라 "이 시기엔 이걸 해보세요"처럼 행동 언어로 바꿔 말할 것
+- "운명", "적중", "반드시", "100%" 같은 표현 금지
 
-생년월일 활용:
-- 태어난 날의 타로적 기운(수비학적 에너지, 계절의 흐름 등)을 카드 해석과 자연스럽게 엮을 것
-- 전문 용어 남발 금지. 한 문장이면 충분히 녹아들게
+내용:
+- 카드 그림 속 상징(인물, 색, 숫자, 배경)을 하나 이상 구체적으로 짚을 것
+- 질문과 연결된 영역(일, 관계, 돈, 몸과 마음 중)을 콕 집어 언급
+- 과거→현재→미래가 하나의 이야기로 이어지게
+- 각 포지션 160~220자, 마지막 문장은 실천 가능한 작은 행동 하나
 
-질문 집중:
-- 모든 카드 해석이 질문에 대한 답의 흐름을 이루도록
-- "지금 당장 어떻게 행동해야 하는가"를 구체적으로 제시
-- 각 포지션마다 실천 가능한 행동 조언 필수
-
-내용 깊이:
-- 카드 그림 속 상징(인물, 색, 숫자, 배경)을 구체적으로 언급하며 의미를 풀어낼 것
-- 직장/커리어, 연애/관계, 금전, 건강 중 해당 카드·질문에 맞는 영역을 콕 집어 언급
-- 역방향이면 어떤 기운이 막히거나 왜곡되는지 구체적으로 짚을 것
-- 과거→현재→미래가 하나의 이야기 흐름이 되도록
-- 각 포지션당 최소 220자 이상
+주제 세 가지 (중요):
+- 세 카드가 함께 가리키는, 질문자가 더 들여다볼 만한 주제 세 가지를 뽑을 것
+- title은 12자 이내 명사형 (예: "관계의 거리 조절", "미뤄둔 결정의 이유")
+- teaser는 왜 이 주제가 나왔는지 궁금해지게 하는 한 문장(40자 이내). 답은 말하지 말 것
+- 첫 번째 주제만 openTheme에 풀어줄 것(200~260자). 나머지 두 주제는 풀지 말 것 — 리더와 직접 이야기할 몫으로 남겨둔다
 
 아래 JSON 형식으로만 응답 (다른 텍스트 없이):
-{"past":"...","present":"...","future":"..."}`;
+{"past":"...","present":"...","future":"...","themes":[{"title":"...","teaser":"..."},{"title":"...","teaser":"..."},{"title":"...","teaser":"..."}],"openTheme":"..."}`;
 
   try {
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -89,6 +87,14 @@ ${cardLines}
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('JSON 파싱 실패: ' + raw.slice(0, 100));
     const readings = JSON.parse(jsonMatch[0]);
+
+    // 주제가 빠지거나 형식이 틀리면 클라이언트가 기본 주제로 대체하도록 제거
+    const themesOk = Array.isArray(readings.themes) && readings.themes.length === 3 &&
+      readings.themes.every(t => t && typeof t.title === 'string' && typeof t.teaser === 'string');
+    if (!themesOk || typeof readings.openTheme !== 'string') {
+      delete readings.themes;
+      delete readings.openTheme;
+    }
     res.json(readings);
   } catch (e) {
     console.error('[reading] catch:', e.message);

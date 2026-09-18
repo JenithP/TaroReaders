@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>별빛타로 세미나 신청</title>
+<meta name="description" content="카페에서 열리는 작은 타로 모임, 별빛타로 세미나 일정과 신청">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Hahmlet:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#c9a84c;--gold2:#e8d08a;--text:#e8dfc8;--muted:rgba(232,223,200,.55);
+  --accent:#9b7fd4;--panel:rgba(14,6,32,.9);--line:rgba(201,168,76,.35);
+}
+body{
+  background:#100828 radial-gradient(ellipse at 50% -10%,rgba(155,127,212,.28),transparent 60%);
+  background-attachment:fixed;color:var(--text);
+  font-family:'Hahmlet','Nanum Myeongjo',serif;min-height:100vh;line-height:1.7;
+}
+.wrap{max-width:560px;margin:0 auto;padding:36px 18px 60px}
+.eyebrow{font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.2em;color:var(--gold);text-align:center}
+h1{font-family:'Hahmlet',serif;font-weight:700;font-size:1.7rem;color:var(--gold2);text-align:center;margin:6px 0 12px;letter-spacing:.02em}
+.lead{text-align:center;font-size:.95rem;color:var(--text)}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:22px 0 30px}
+.fact{border:1px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;background:rgba(255,255,255,.03)}
+.fact b{display:block;color:var(--gold2);font-size:.92rem;font-weight:500}
+.fact span{font-size:.74rem;color:var(--muted)}
+h2{font-size:1.05rem;color:var(--gold2);font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+h2::before{content:'✦';color:var(--gold);font-size:.8rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 18px;margin-bottom:18px;box-shadow:0 0 40px rgba(155,127,212,.12)}
+.session{
+  width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);
+  color:var(--text);font-family:inherit;font-size:inherit;text-align:left;cursor:pointer;margin-bottom:8px;transition:all .2s;
+}
+.session:hover:not(:disabled){border-color:var(--gold)}
+.session[aria-pressed="true"]{border-color:var(--gold2);background:rgba(201,168,76,.12);box-shadow:0 0 16px rgba(201,168,76,.2)}
+.session:disabled{opacity:.45;cursor:default}
+.session .when{font-size:1rem;font-weight:500}
+.session .where{font-size:.8rem;color:var(--muted)}
+.session .note{font-size:.78rem;color:var(--accent);margin-top:2px}
+.seats{flex-shrink:0;font-size:.78rem;padding:3px 10px;border-radius:20px;border:1px solid var(--line);color:var(--gold2);white-space:nowrap}
+.seats.low{border-color:#e0a36a;color:#f0bf8a}
+.seats.full{color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:18px 0;font-size:.9rem}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:.8rem;color:var(--gold);margin-bottom:6px;letter-spacing:.04em}
+.field input,.field textarea{
+  width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;
+  padding:11px 14px;color:var(--text);font-family:inherit;font-size:.95rem;outline:none;
+}
+.field textarea{min-height:76px;resize:vertical}
+.field input:focus,.field textarea:focus{border-color:var(--gold2);box-shadow:0 0 10px rgba(201,168,76,.2)}
+.field input::placeholder,.field textarea::placeholder{color:rgba(232,223,200,.3)}
+.hint{font-size:.74rem;color:var(--muted);margin-top:4px}
+.consent{border:1px solid rgba(155,127,212,.3);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:rgba(255,255,255,.02)}
+.consent label{display:flex;gap:10px;align-items:flex-start;font-size:.85rem;cursor:pointer}
+.consent input{margin-top:5px;width:16px;height:16px;accent-color:var(--gold)}
+.consent button{background:none;border:none;color:var(--accent);font-family:inherit;font-size:.76rem;cursor:pointer;padding:0 4px}
+.consent .detail{display:none;margin-top:8px;padding:10px 12px;background:rgba(0,0,0,.3);border-radius:6px;font-size:.74rem;line-height:1.8;color:rgba(232,223,200,.7)}
+.consent .detail.open{display:block}
+.error{min-height:1.2em;font-size:.8rem;color:#f0a8a8;text-align:center;margin:6px 0}
+.submit{
+  width:100%;padding:14px;border:1px solid var(--gold);border-radius:40px;background:rgba(201,168,76,.15);
+  color:var(--gold2);font-family:inherit;font-size:1rem;letter-spacing:.04em;cursor:pointer;transition:all .3s;
+}
+.submit:hover:not(:disabled){background:rgba(201,168,76,.28);box-shadow:0 0 20px rgba(201,168,76,.3)}
+.submit:disabled{opacity:.5;cursor:default}
+.selected-label{font-size:.85rem;color:var(--gold2);margin-bottom:14px;padding:8px 12px;border-radius:8px;background:rgba(201,168,76,.08)}
+.done{text-align:center;padding:10px 0}
+.done .big{font-size:2.2rem}
+.done h3{color:var(--gold2);font-size:1.2rem;margin:6px 0 10px;font-weight:500}
+.done p{font-size:.9rem;margin-bottom:6px}
+.kakao{
+  display:inline-flex;align-items:center;gap:8px;margin-top:14px;background:#FEE500;color:#191919;
+  padding:11px 20px;border-radius:10px;text-decoration:none;font-weight:700;font-size:.9rem;
+}
+.alt{display:block;text-align:center;margin-top:22px;font-size:.85rem;color:var(--accent)}
+.notice{text-align:center;font-size:.72rem;color:var(--muted);margin-top:26px;line-height:1.7}
+.hidden{display:none!important}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
+@media(max-width:400px){ .fact{padding:10px 4px} .fact b{font-size:.84rem} h1{font-size:1.45rem} }
+@media(max-width:320px){ .facts{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">STARLIGHT TAROT</div>
+  <h1>별빛타로 세미나</h1>
+  <p class="lead">카페에서 열리는 작은 타로 모임이에요.<br>리더와 마주 앉아 카드를 펼쳐보고, 요즘 마음에 걸린 질문을 함께 들여다봐요.</p>
+
+  <div class="facts">
+    <div class="fact"><b>10명 안팎</b><span>소규모로 진행</span></div>
+    <div class="fact"><b>1:1 리딩</b><span>리더와 직접</span></div>
+    <div class="fact"><b>처음이어도</b><span>괜찮아요</span></div>
+  </div>
+
+  <div class="panel" id="panel-sessions">
+    <h2>일정 선택</h2>
+    <div id="sessions"><div class="empty">일정을 불러오는 중이에요...</div></div>
+  </div>
+
+  <form class="panel hidden" id="panel-form" novalidate>
+    <h2>신청 정보</h2>
+    <div class="selected-label" id="selected-label"></div>
+    <div class="field">
+      <label for="f-name">불러드릴 이름</label>
+      <input id="f-name" type="text" maxlength="20" placeholder="닉네임도 괜찮아요" autocomplete="name">
+    </div>
+    <div class="field">
+      <label for="f-phone">전화번호</label>
+      <input id="f-phone" type="tel" inputmode="numeric" placeholder="010-0000-0000" autocomplete="tel">
+      <div class="hint">신청 확인 연락을 드릴 번호예요.</div>
+    </div>
+    <div class="field">
+      <label for="f-question">요즘 궁금한 것 (선택)</label>
+      <textarea id="f-question" maxlength="200" placeholder="세미나에서 이야기해 보고 싶은 것이 있다면 적어주세요"></textarea>
+    </div>
+
+    <div class="consent">
+      <label><input type="checkbox" id="c-required">
+        <span><b>[필수]</b> 개인정보 수집·이용에 동의합니다.<button type="button" data-toggle="d-required">내용 보기 ▾</button></span></label>
+      <div class="detail" id="d-required">
+        <b>운영:</b> 별빛타로<br>
+        <b>수집 항목:</b> 이름, 전화번호, 궁금한 것(입력 시), 신청 일정, 유입 경로<br>
+        <b>이용 목적:</b> 세미나 신청 확인 연락 및 참석 안내<br>
+        <b>보유 기간:</b> 수집일로부터 3년. 기간이 끝나거나 삭제를 요청하시면 지체 없이 파기합니다.<br>
+        <b>파기 방법:</b> 전자 기록은 복구할 수 없는 방식으로 영구 삭제합니다.<br>
+        <b>처리 위탁:</b> 데이터 보관(Google Firebase)<br>
+        동의하지 않으실 수 있으나, 이 경우 신청하실 수 없습니다.
+      </div>
+    </div>
+    <div class="consent">
+      <label><input type="checkbox" id="c-marketing">
+        <span><b>[선택]</b> 다음 모임·세미나 소식을 카카오톡·문자로 받겠습니다.<button type="button" data-toggle="d-marketing">내용 보기 ▾</button></span></label>
+      <div class="detail" id="d-marketing">
+        <b>이용 항목:</b> 이름, 전화번호<br>
+        <b>이용 목적:</b> 별빛타로 모임·세미나·이벤트 안내<br>
+        <b>보유 기간:</b> 동의일로부터 3년 또는 수신 거부 시까지<br>
+        동의하지 않으셔도 세미나 신청은 그대로 할 수 있어요.
+      </div>
+    </div>
+
+    <div class="error" id="form-error" role="alert"></div>
+    <button type="submit" class="submit" id="btn-submit">신청하기</button>
+  </form>
+
+  <div class="panel hidden" id="panel-done">
+    <div class="done">
+      <div class="big">🌙</div>
+      <h3>신청이 접수됐어요</h3>
+      <p id="done-label"></p>
+      <p>담당자가 <b>전화로 한 번 확인 연락</b>을 드릴게요.<br>모르는 번호라도 받아주시면 고마워요.</p>
+      <a class="kakao" href="https://pf.kakao.com/_EDIiX" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 2C5.58 2 2 4.91 2 8.5c0 2.3 1.4 4.32 3.5 5.5L4.5 18l4.2-2.8c.42.06.86.1 1.3.1 4.42 0 8-2.91 8-6.5S14.42 2 10 2z" fill="#191919"/></svg>
+        카카오톡 채널에서 소식 받기
+      </a>
+    </div>
+  </div>
+
+  <a class="alt" id="link-reading" href="/">세미나 전에 타로 리딩 먼저 해보기 →</a>
+
+  <p class="notice">별빛타로의 리딩은 자기 이해를 돕는 대화이며, 의료·심리치료가 아닙니다.</p>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, collection, doc, getDocs, query, where, writeBatch, serverTimestamp, increment }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// index.html / admin.html 과 같은 프로젝트·웹앱
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDZpaTev88ouglNnKYGzglC-xubhmbonig',
+  authDomain: 'club-member-admin-807f9.firebaseapp.com',
+  projectId: 'club-member-admin-807f9',
+  storageBucket: 'club-member-admin-807f9.firebasestorage.app',
+  messagingSenderId: '850870746617',
+  appId: '1:850870746617:web:b223c1b0c3d61adaf65128',
+};
+const db = getFirestore(initializeApp(FIREBASE_CONFIG));
+
+// 유입 코드: ?src=ig_dm_seminar 처럼 붙여서 배포 (리딩 사이트와 같은 세션 저장소를 쓴다)
+const SRC = (() => {
+  let v = '';
+  try { v = new URLSearchParams(location.search).get('src') || sessionStorage.getItem('bt_src') || ''; } catch (e) {}
+  v = v.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 30);
+  try { if (v) sessionStorage.setItem('bt_src', v); } catch (e) {}
+  return v;
+})();
+if (SRC) document.getElementById('link-reading').href = '/?src=' + encodeURIComponent(SRC);
+
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DOW = '일월화수목금토';
+function label(s) {
+  const d = s.startAt.toDate(), p = n => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}월 ${d.getDate()}일(${DOW[d.getDay()]}) ${p(d.getHours())}:${p(d.getMinutes())}` + (s.place ? ` · ${s.place}` : '');
+}
+
+let sessions = [];
+let selected = null;
+
+async function loadSessions() {
+  try {
+    const snap = await getDocs(query(collection(db, 'seminars'), where('open', '==', true)));
+    const now = Date.now();
+    sessions = snap.docs.map(d => ({id: d.id, ...d.data()}))
+      .filter(s => s.startAt && s.startAt.toMillis() > now)
+      .sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis());
+  } catch (e) {
+    console.error(e);
+    $('sessions').innerHTML = '<div class="empty">일정을 불러오지 못했어요. 잠시 후 다시 열어주세요.</div>';
+    return;
+  }
+  renderSessions();
+}
+
+function renderSessions() {
+  if (!sessions.length) {
+    $('sessions').innerHTML = '<div class="empty">다음 일정을 준비하고 있어요.<br>카카오톡 채널을 추가하시면 일정이 열릴 때 알려드릴게요.</div>';
+    return;
+  }
+  $('sessions').innerHTML = sessions.map(s => {
+    const left = Math.max(0, (s.capacity || 0) - (s.applied || 0));
+    const cls = left === 0 ? 'full' : left <= 3 ? 'low' : '';
+    return `<button type="button" class="session" data-id="${esc(s.id)}" aria-pressed="${selected && selected.id === s.id}" ${left === 0 ? 'disabled' : ''}>
+      <span><span class="when">${esc(label(s).split(' · ')[0])}</span><br>
+        <span class="where">${esc(s.place || '')}${s.title ? ` · ${esc(s.title)}` : ''}</span>
+        ${s.note ? `<br><span class="note">${esc(s.note)}</span>` : ''}</span>
+      <span class="seats ${cls}">${left === 0 ? '마감' : `잔여 ${left}석`}</span>
+    </button>`;
+  }).join('');
+}
+
+$('sessions').addEventListener('click', e => {
+  const b = e.target.closest('.session');
+  if (!b || b.disabled) return;
+  selected = sessions.find(s => s.id === b.dataset.id);
+  renderSessions();
+  $('selected-label').textContent = label(selected);
+  $('panel-form').classList.remove('hidden');
+  $('panel-form').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
+  $('f-name').focus({preventScroll: true});
+});
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-toggle]');
+  if (t) $(t.dataset.toggle).classList.toggle('open');
+});
+
+$('panel-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = $('form-error');
+  const name = $('f-name').value.trim();
+  const phone = $('f-phone').value.replace(/\D/g, '');
+  if (!selected) { err.textContent = '일정을 먼저 골라주세요.'; return; }
+  if (!name) { err.textContent = '불러드릴 이름을 적어주세요.'; $('f-name').focus(); return; }
+  if (!/^01\d{8,9}$/.test(phone)) { err.textContent = '전화번호를 확인해주세요. (예: 010-1234-5678)'; $('f-phone').focus(); return; }
+  if (!$('c-required').checked) { err.textContent = '개인정보 수집·이용에 동의해주세요.'; return; }
+  err.textContent = '';
+
+  const btn = $('btn-submit');
+  btn.disabled = true; btn.textContent = '신청하는 중...';
+  const seminarLabel = label(selected);
+  try {
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, 'seminarApplications')), {
+      seminarId: selected.id,
+      seminarLabel,
+      name,
+      phone,
+      question: $('f-question').value.trim().slice(0, 200),
+      src: SRC,
+      marketingConsent: $('c-marketing').checked,
+      consentRequired: true,
+      createdAt: serverTimestamp(),
+    });
+    batch.update(doc(db, 'seminars', selected.id), {applied: increment(1)});
+    await batch.commit();
+    $('done-label').textContent = seminarLabel;
+    $('panel-sessions').classList.add('hidden');
+    $('panel-form').classList.add('hidden');
+    $('panel-done').classList.remove('hidden');
+    $('panel-done').scrollIntoView({block: 'start'});
+  } catch (e2) {
+    console.error(e2);
+    // 정원이 찼거나 신청이 닫힌 경우 규칙에서 거절된다
+    err.textContent = e2.code === 'permission-denied'
+      ? '방금 이 일정의 자리가 마감됐어요. 다른 일정을 골라주세요.'
+      : '신청을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
+    btn.disabled = false; btn.textContent = '신청하기';
+    selected = null;
+    $('selected-label').textContent = '위에서 일정을 다시 골라주세요';
+    await loadSessions();
+  }
+});
+
+loadSessions();
+</script>
+</body>
+</html>

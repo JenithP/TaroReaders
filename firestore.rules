@@ -1,0 +1,136 @@
+rules_version = '2';
+
+// 별빛타로
+// - 방문자 브라우저: 리딩 문서 "만들기"와 "연락처 한 번 붙이기"만 가능
+// - 관리자 페이지(admin.html): 구글 로그인 + users/{uid}.roles 로 권한 구분
+//     최고 관리자(아래 이메일) → 관리자 지정 가능
+//     관리자  → 전체 조회, 리더·콜러 등록, 배정
+//     리더    → 자기에게 배정된 고객만 조회·진행 기록
+//     콜러    → 자기에게 배정된 고객만 조회·안내 기록
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isSuper() {
+      return signedIn()
+        && request.auth.token.email == 'leily.yoon@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function myRoles() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', {});
+    }
+    function hasRole(r) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myRoles().get(r, false) == true;
+    }
+    function isAdmin() {
+      return isSuper() || hasRole('admin');
+    }
+    function isStaff() {
+      return isAdmin() || hasRole('leader') || hasRole('caller');
+    }
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ── 리딩 (방문자가 생성) ──
+    match /readings/{id} {
+      allow create: if request.resource.data.keys().hasOnly([
+            'code', 'name', 'birth', 'question', 'cards', 'readings', 'themes',
+            'openTheme', 'src', 'consentRequired', 'createdAt'])
+        && request.resource.data.consentRequired == true
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.code is string && request.resource.data.code.size() <= 12
+        && request.resource.data.name is string && request.resource.data.name.size() <= 20
+        && request.resource.data.birth is string && request.resource.data.birth.size() <= 10
+        && request.resource.data.question is string && request.resource.data.question.size() <= 100
+        && request.resource.data.src is string && request.resource.data.src.size() <= 30;
+
+      // 연락처는 문서당 한 번만 붙일 수 있다
+      allow update: if !('phone' in resource.data)
+        && changed().hasOnly(['phone', 'region', 'marketingConsent', 'contactAt'])
+        && request.resource.data.phone is string
+        && request.resource.data.phone.matches('^01[0-9]{8,9}$')
+        && request.resource.data.region is string && request.resource.data.region.size() <= 20
+        && request.resource.data.marketingConsent is bool
+        && request.resource.data.contactAt == request.time;
+
+      allow read, delete: if isAdmin();
+    }
+
+    // ── 세미나 일정 (누구나 조회, 관리자가 관리) ──
+    // 방문자는 신청할 때 applied(신청 수)를 1만 올릴 수 있고, 정원을 넘길 수 없다.
+    // 실제 신청 수는 관리자 페이지가 열릴 때 고객 목록 기준으로 다시 맞춘다.
+    match /seminars/{id} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (resource.data.open == true
+            && changed().hasOnly(['applied'])
+            && request.resource.data.applied == resource.data.get('applied', 0) + 1
+            && request.resource.data.applied <= resource.data.capacity);
+    }
+
+    // ── 세미나 신청 (방문자가 생성, 관리자만 조회) ──
+    match /seminarApplications/{id} {
+      allow create: if request.resource.data.keys().hasOnly([
+            'seminarId', 'seminarLabel', 'name', 'phone', 'question', 'src',
+            'marketingConsent', 'consentRequired', 'createdAt'])
+        && request.resource.data.consentRequired == true
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 20
+        && request.resource.data.phone is string
+        && request.resource.data.phone.matches('^01[0-9]{8,9}$')
+        && request.resource.data.question is string && request.resource.data.question.size() <= 200
+        && request.resource.data.src is string && request.resource.data.src.size() <= 30
+        && request.resource.data.seminarLabel is string && request.resource.data.seminarLabel.size() <= 80
+        && request.resource.data.marketingConsent is bool
+        && get(/databases/$(database)/documents/seminars/$(request.resource.data.seminarId)).data.open == true;
+
+      allow read, delete: if isAdmin();
+    }
+
+    // ── 가입자 (관리자 페이지에 구글로 로그인한 사람) ──
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'name', 'photoURL', 'createdAt', 'lastLoginAt'])
+        && request.resource.data.email == request.auth.token.email;
+
+      // 본인은 프로필만, 관리자는 역할만 바꿀 수 있다. 관리자 지정·해제는 최고 관리자만.
+      allow update: if (signedIn() && request.auth.uid == uid
+            && changed().hasOnly(['name', 'photoURL', 'lastLoginAt']))
+        || (isAdmin()
+            && changed().hasOnly(['roles', 'rolesUpdatedAt'])
+            && (isSuper()
+                || request.resource.data.get('roles', {}).get('admin', false)
+                   == resource.data.get('roles', {}).get('admin', false)));
+
+      allow delete: if isSuper();
+    }
+
+    // ── 고객 (전화번호 = 문서 ID, 관리자 페이지가 리딩에서 만든다) ──
+    match /customers/{phone} {
+      allow read: if isAdmin()
+        || (hasRole('caller') && resource.data.callerUid == request.auth.uid)
+        || (hasRole('leader') && resource.data.leaderUid == request.auth.uid);
+
+      allow create, delete: if isAdmin();
+
+      allow update: if isAdmin()
+        || (hasRole('caller')
+            && resource.data.get('callerUid', '') == request.auth.uid
+            && changed().hasOnly(['contactStatus', 'callResult', 'callAttempts', 'firstCallAt',
+                                  'confirmedAt', 'memo', 'updatedAt', 'updatedBy']))
+        || (hasRole('leader')
+            && resource.data.get('leaderUid', '') == request.auth.uid
+            && changed().hasOnly(['contactStatus', 'memo', 'attendedAt', 'groupSecondAt',
+                                  'counselorMatchedAt', 'referralAt', 'updatedAt', 'updatedBy']));
+    }
+  }
+}

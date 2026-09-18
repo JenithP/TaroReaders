@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>별빛타로 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f6f4fa;--panel:#fff;--line:#e4dfee;--text:#221a33;--muted:#7a7090;
+  --brand:#4b2a86;--brand-soft:#efe8fb;--gold:#b08a2e;
+  --ok:#1f8a4c;--ok-soft:#e3f5ea;--warn:#b86e00;--warn-soft:#fff2dc;--bad:#c0392b;--bad-soft:#fbe6e3;
+}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:14px;line-height:1.5}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:inherit}
+.hidden{display:none!important}
+
+/* ── 로그인 / 대기 ── */
+.center-box{max-width:380px;margin:12vh auto 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:36px 28px;text-align:center}
+.center-box h1{font-size:1.2rem;color:var(--brand);margin-bottom:6px}
+.center-box p{color:var(--muted);margin-bottom:22px;font-size:.9rem}
+.google-btn{display:inline-flex;align-items:center;gap:10px;padding:11px 22px;border:1px solid var(--line);border-radius:8px;background:#fff;font-weight:500}
+.google-btn:hover{background:#faf8fe}
+
+/* ── 상단 ── */
+header{background:var(--brand);color:#fff;padding:0 20px;display:flex;align-items:center;gap:16px;height:54px;position:sticky;top:0;z-index:20}
+header .logo{font-weight:700;letter-spacing:.02em;white-space:nowrap}
+header nav{display:flex;gap:4px;overflow-x:auto;flex:1}
+header nav button{background:none;border:none;color:rgba(255,255,255,.7);padding:8px 12px;border-radius:6px;white-space:nowrap}
+header nav button.on{background:rgba(255,255,255,.16);color:#fff}
+header .me{font-size:.8rem;opacity:.85;white-space:nowrap;display:flex;align-items:center;gap:8px}
+header .me button{background:rgba(255,255,255,.14);border:none;color:#fff;padding:4px 10px;border-radius:5px;font-size:.78rem}
+main{max-width:1180px;margin:0 auto;padding:20px}
+.page-title{font-size:1.05rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.page-title .sub{font-size:.8rem;color:var(--muted);font-weight:400}
+
+/* ── 공통 ── */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.panel h3{font-size:.92rem;margin-bottom:10px}
+.btn{border:1px solid var(--line);background:#fff;padding:6px 12px;border-radius:7px}
+.btn:hover{background:#faf8fe}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{opacity:.9}
+.btn.danger{color:var(--bad);border-color:#f0c9c4}
+.btn.sm{padding:3px 9px;font-size:.8rem}
+.btn:disabled{opacity:.45;cursor:default}
+.badge{display:inline-block;padding:1px 8px;border-radius:20px;font-size:.74rem;font-weight:500;white-space:nowrap}
+.b-stage{background:var(--brand-soft);color:var(--brand)}
+.b-before{background:var(--warn-soft);color:var(--warn)}
+.b-done{background:var(--ok-soft);color:var(--ok)}
+.b-bad{background:var(--bad-soft);color:var(--bad)}
+.b-muted{background:#eeeaf4;color:var(--muted)}
+.muted{color:var(--muted)}
+.small{font-size:.8rem}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar input[type=search]{flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.toolbar select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:#fff;padding:4px 11px;border-radius:20px;font-size:.8rem}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.empty{padding:40px 0;text-align:center;color:var(--muted)}
+
+/* ── 표 ── */
+.table-wrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.76rem;color:var(--muted);font-weight:500;background:#faf8fd;position:sticky;top:0}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#faf8fe}
+tbody tr:last-child td{border-bottom:none}
+td.wrap{white-space:normal;min-width:180px}
+.code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;color:var(--brand)}
+
+/* ── 모바일 카드 목록 ── */
+.cards{display:none}
+.c-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.c-card .row1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.c-card .name{font-weight:700}
+.c-card .row2{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+/* ── 상세 ── */
+.overlay{position:fixed;inset:0;background:rgba(20,10,40,.45);z-index:50;display:flex;justify-content:flex-end}
+.drawer{width:min(620px,100%);height:100%;background:var(--bg);overflow-y:auto;box-shadow:-10px 0 40px rgba(0,0,0,.15)}
+.drawer-head{background:var(--panel);border-bottom:1px solid var(--line);padding:16px 20px;position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.drawer-head h2{font-size:1.1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.drawer-body{padding:16px 20px 40px}
+.kv{display:grid;grid-template-columns:96px 1fr;gap:6px 12px;font-size:.86rem}
+.kv dt{color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:none;background:#fff;padding:6px 14px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--brand);color:#fff}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px}
+.field select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+textarea{width:100%;min-height:84px;padding:10px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+.check{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.check:last-child{border-bottom:none}
+.check input{width:17px;height:17px;accent-color:var(--brand)}
+.check .when{margin-left:auto;font-size:.76rem;color:var(--muted)}
+.notice{background:var(--warn-soft);color:var(--warn);padding:8px 12px;border-radius:8px;font-size:.82rem;margin-top:8px}
+.cards-mini{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.cards-mini span{background:var(--brand-soft);color:var(--brand);padding:3px 10px;border-radius:6px;font-size:.8rem}
+.reading-text{font-size:.86rem;line-height:1.8;margin-bottom:10px}
+.reading-text b{color:var(--brand)}
+.theme{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:.84rem}
+.theme.locked{border-style:dashed;background:#fbfaff}
+
+/* ── 대시보드 ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat .n{font-size:1.5rem;font-weight:700}
+.stat .l{font-size:.78rem;color:var(--muted)}
+.ladder{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.rung{background:var(--brand-soft);border-radius:10px;padding:10px;text-align:center}
+.rung .n{font-size:1.3rem;font-weight:700;color:var(--brand)}
+.rung .l{font-size:.72rem;color:var(--muted)}
+.gng{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+.gng .item{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.gng .item .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.gng .item .v{font-size:1.2rem;font-weight:700}
+
+/* ── 직원 ── */
+.role-toggle{display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:.84rem;cursor:pointer}
+.role-toggle input{accent-color:var(--brand)}
+.staff-chip{display:inline-flex;align-items:center;gap:6px;background:var(--brand-soft);color:var(--brand);padding:4px 10px;border-radius:20px;margin:0 6px 6px 0;font-size:.84rem}
+.staff-chip button{border:none;background:none;color:var(--muted);font-size:.9rem;padding:0 2px}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#221a33;color:#fff;padding:10px 18px;border-radius:8px;font-size:.86rem;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+@media(max-width:760px){
+  header{padding:0 12px;gap:10px}
+  header .me .email{display:none}
+  main{padding:14px 12px}
+  .table-wrap.customers{display:none}
+  .cards{display:block}
+  .ladder{grid-template-columns:repeat(3,1fr)}
+  .kv{grid-template-columns:80px 1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="view-loading" class="center-box"><p>불러오는 중...</p></div>
+
+<div id="view-login" class="center-box hidden">
+  <h1>별빛타로 관리</h1>
+  <p>등록된 구글 계정으로 로그인해주세요.</p>
+  <button class="google-btn" id="btn-login">
+    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+    Google로 로그인
+  </button>
+  <p class="small muted" id="login-error" style="margin:14px 0 0"></p>
+</div>
+
+<div id="view-pending" class="center-box hidden">
+  <h1>승인 대기 중</h1>
+  <p><b id="pending-email"></b> 계정으로 가입되었어요.<br>관리자가 역할(관리자·리더·콜러)을 지정하면 이용할 수 있어요.</p>
+  <div class="btn-row" style="justify-content:center">
+    <button class="btn" onclick="location.reload()">새로고침</button>
+    <button class="btn" data-action="logout">로그아웃</button>
+  </div>
+</div>
+
+<div id="view-app" class="hidden">
+  <header>
+    <div class="logo">✦ 별빛타로</div>
+    <nav id="nav"></nav>
+    <div class="me"><span class="email" id="me-label"></span><button data-action="logout">로그아웃</button></div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<div id="drawer-root"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {
+  getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
+  query, where, orderBy, limit, serverTimestamp, Timestamp, deleteField, writeBatch,
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+/* ═══════════════════════════════════════
+   설정
+═══════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDZpaTev88ouglNnKYGzglC-xubhmbonig',
+  authDomain: 'club-member-admin-807f9.firebaseapp.com',
+  projectId: 'club-member-admin-807f9',
+  storageBucket: 'club-member-admin-807f9.firebasestorage.app',
+  messagingSenderId: '850870746617',
+  appId: '1:850870746617:web:b223c1b0c3d61adaf65128',
+};
+const SUPER_ADMIN_EMAIL = 'leily.yoon@gmail.com'; // firestore.rules 의 isSuper()와 같아야 한다
+const LEADER_CAP = 15;          // 리더 1인당 담당 상한 (사업캔버스 기준)
+const READINGS_LIMIT = 2000;
+
+const app = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+/* ═══════════════════════════════════════
+   상태
+═══════════════════════════════════════ */
+const S = {
+  me: null,            // {uid, email, name, roles, isSuper, isAdmin, isLeader, isCaller}
+  users: [],           // 가입자 (관리자만 전체 로드)
+  readings: [],        // 관리자만
+  applications: [],    // 세미나 신청 (관리자만)
+  seminars: [],        // 세미나 일정
+  editSeminarId: null, // 수정 중인 일정
+  customers: new Map(),
+  tab: 'customers',
+  filter: 'all',
+  stageFilter: '',
+  search: '',
+  openId: null,        // 열린 상세: 'c:전화번호' | 'r:리딩ID'
+};
+
+/* ═══════════════════════════════════════
+   유틸
+═══════════════════════════════════════ */
+const $ = sel => document.querySelector(sel);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : t instanceof Date ? t.getTime() : (t.seconds ? t.seconds * 1000 : 0);
+function fmt(t, withTime = true) {
+  const m = ms(t); if (!m) return '';
+  const d = new Date(m), p = n => String(n).padStart(2, '0');
+  const s = `${String(d.getFullYear()).slice(2)}.${p(d.getMonth()+1)}.${p(d.getDate())}`;
+  return withTime ? `${s} ${p(d.getHours())}:${p(d.getMinutes())}` : s;
+}
+const fmtPhone = p => p && p.length === 11 ? `${p.slice(0,3)}-${p.slice(3,7)}-${p.slice(7)}` : (p || '');
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function show(id) {
+  ['view-loading','view-login','view-pending','view-app'].forEach(v => $('#' + v).classList.toggle('hidden', v !== id));
+}
+const pct = (a, b) => b ? Math.round(a / b * 100) : null;
+
+/* ═══════════════════════════════════════
+   라포 단계 / 실적 점수 (사업캔버스 기준)
+═══════════════════════════════════════ */
+const STAGES = [
+  {k:'L0', name:'익명·연락처', desc:'리딩 후 연락처만 남김'},
+  {k:'L1', name:'확답',        desc:'콜링에서 참가 확답'},
+  {k:'L2', name:'매칭',        desc:'세미나 참석 + 담당 리더 확정'},
+  {k:'L3', name:'그룹',        desc:'그룹 모임 2회차 출석'},
+  {k:'L4', name:'심화',        desc:'개별 상담사 연결'},
+  {k:'L5', name:'전파',        desc:'지인 소개 발생'},
+];
+function stageOf(c) {
+  if (c.referralAt) return 5;
+  if (c.counselorMatchedAt) return 4;
+  if (c.groupSecondAt) return 3;
+  if (c.attendedAt && c.leaderUid) return 2;
+  if (c.confirmedAt) return 1;
+  return 0;
+}
+// 반환: [{uid, name, pts, what}]
+function scoreEvents(c) {
+  const ev = [];
+  const C = (pts, what) => c.callerUid && ev.push({uid: c.callerUid, name: c.callerName, pts, what});
+  const L = (pts, what) => c.leaderUid && ev.push({uid: c.leaderUid, name: c.leaderName, pts, what});
+  if (c.confirmedAt)      C(2, '참가 확답');
+  if (c.attendedAt)       C(3, '실제 참석');
+  if (c.leaderAssignedAt && c.attendedAt) L(5, '담당 리더 매칭');
+  if (c.groupSecondAt)  { L(7, '그룹 2회차 출석'); C(3, '그룹 2회차 출석'); }
+  if (c.counselorMatchedAt) L(10, '개별 상담사 매칭');
+  if (c.referralAt)       L(10, '지인 소개');
+  return ev;
+}
+const CALL_RESULTS = {'':'미정', no_answer:'부재', confirmed:'확답', declined:'거절'};
+
+/* ═══════════════════════════════════════
+   인증
+═══════════════════════════════════════ */
+$('#btn-login').addEventListener('click', async () => {
+  $('#login-error').textContent = '';
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch (e) {
+    $('#login-error').textContent = e.code === 'auth/popup-closed-by-user' ? '' : '로그인 실패: ' + (e.code || e.message);
+  }
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-action=logout]')) signOut(auth).then(() => location.reload());
+});
+
+onAuthStateChanged(auth, async user => {
+  if (!user) { show('view-login'); return; }
+  show('view-loading');
+  try {
+    const ref = doc(db, 'users', user.uid);
+    const snap = await getDoc(ref);
+    const profile = {name: user.displayName || user.email, photoURL: user.photoURL || ''};
+    if (!snap.exists()) {
+      await setDoc(ref, {email: user.email, ...profile, createdAt: serverTimestamp(), lastLoginAt: serverTimestamp()});
+    } else {
+      await updateDoc(ref, {...profile, lastLoginAt: serverTimestamp()});
+    }
+    const roles = (snap.exists() && snap.data().roles) || {};
+    const isSuper = user.email === SUPER_ADMIN_EMAIL && user.emailVerified;
+    S.me = {
+      uid: user.uid, email: user.email, name: profile.name, roles, isSuper,
+      isAdmin: isSuper || !!roles.admin, isLeader: !!roles.leader, isCaller: !!roles.caller,
+    };
+    if (!S.me.isAdmin && !S.me.isLeader && !S.me.isCaller) {
+      $('#pending-email').textContent = user.email;
+      show('view-pending');
+      return;
+    }
+    await loadAll();
+    show('view-app');
+    render();
+  } catch (e) {
+    console.error(e);
+    show('view-login');
+    $('#login-error').textContent = '데이터를 불러오지 못했어요: ' + (e.code || e.message);
+  }
+});
+
+/* ═══════════════════════════════════════
+   데이터 로드
+═══════════════════════════════════════ */
+async function loadAll() {
+  const me = S.me;
+  if (me.isAdmin) {
+    const [us, rs, cs, as, ss] = await Promise.all([
+      getDocs(collection(db, 'users')),
+      getDocs(query(collection(db, 'readings'), orderBy('createdAt', 'desc'), limit(READINGS_LIMIT))),
+      getDocs(collection(db, 'customers')),
+      getDocs(query(collection(db, 'seminarApplications'), orderBy('createdAt', 'desc'), limit(READINGS_LIMIT))),
+      getDocs(collection(db, 'seminars')),
+    ]);
+    S.users = us.docs.map(d => ({uid: d.id, ...d.data()}));
+    S.readings = rs.docs.map(d => ({id: d.id, ...d.data()}));
+    S.customers = new Map(cs.docs.map(d => [d.id, {id: d.id, ...d.data()}]));
+    S.applications = as.docs.map(d => ({id: d.id, ...d.data()}));
+    S.seminars = ss.docs.map(d => ({id: d.id, ...d.data()}));
+    await syncCustomers();
+    await reconcileSeminarCounts();
+  } else {
+    const qs = [];
+    if (me.isCaller) qs.push(getDocs(query(collection(db, 'customers'), where('callerUid', '==', me.uid))));
+    if (me.isLeader) qs.push(getDocs(query(collection(db, 'customers'), where('leaderUid', '==', me.uid))));
+    const snaps = await Promise.all(qs);
+    S.customers = new Map();
+    snaps.forEach(s => s.docs.forEach(d => S.customers.set(d.id, {id: d.id, ...d.data()})));
+  }
+}
+
+// 연락처가 있는 리딩과 세미나 신청을 전화번호 기준 고객 1명으로 묶는다 (관리자만)
+async function syncCustomers() {
+  const byPhone = new Map();
+  const add = (phone, kind, item) => {
+    if (!byPhone.has(phone)) byPhone.set(phone, {rs: [], as: []});
+    byPhone.get(phone)[kind].push(item);
+  };
+  S.readings.forEach(r => r.phone && add(r.phone, 'rs', r));
+  S.applications.forEach(a => a.phone && add(a.phone, 'as', a));
+  const t = x => ms(x.contactAt || x.createdAt);
+  const writes = [];
+  for (const [phone, {rs, as}] of byPhone) {
+    rs.sort((a, b) => t(a) - t(b));
+    as.sort((a, b) => t(a) - t(b));
+    const lr = rs[rs.length - 1], la = as[as.length - 1];
+    const cur = S.customers.get(phone);
+    if (cur && (cur.readingCount || 0) === rs.length && (cur.latestCode || '') === (lr ? lr.code : '')
+        && (cur.applicationCount || 0) === as.length && (cur.latestApplicationId || '') === (la ? la.id : '')) continue;
+    const all = [...rs, ...as].sort((a, b) => t(a) - t(b));
+    const first = all[0], last = all[all.length - 1];
+    const base = {
+      phone,
+      name: last.name || '',
+      src: (cur && cur.src) || first.src || '',
+      marketingConsent: !!last.marketingConsent,
+      firstContactAt: (cur && cur.firstContactAt) || first.contactAt || first.createdAt || null,
+      lastContactAt: last.contactAt || last.createdAt || null,
+      readingCount: rs.length,
+      applicationCount: as.length,
+    };
+    if (lr) Object.assign(base, {
+      region: lr.region || '',
+      codes: rs.map(r => r.code),
+      latestCode: lr.code,
+      latest: {
+        code: lr.code, createdAt: lr.createdAt || null, question: lr.question || '',
+        birth: lr.birth || '', cards: lr.cards || [], readings: lr.readings || null,
+        themes: lr.themes || [], openTheme: lr.openTheme || '',
+      },
+    });
+    // 새 신청이 들어왔을 때만 세미나 정보를 덮어쓴다 (관리자가 옮긴 일정은 유지)
+    if (la && (!cur || cur.latestApplicationId !== la.id)) Object.assign(base, {
+      latestApplicationId: la.id,
+      seminar: {id: la.seminarId, label: la.seminarLabel || ''},
+      seminarAppliedAt: la.createdAt || null,
+      seminarQuestion: la.question || '',
+    });
+    if (!cur) Object.assign(base, {contactStatus: 'before', callResult: '', callAttempts: 0, memo: '', createdAt: serverTimestamp()});
+    writes.push([phone, base]);
+  }
+  for (let i = 0; i < writes.length; i += 400) {
+    const batch = writeBatch(db);
+    writes.slice(i, i + 400).forEach(([id, data]) => batch.set(doc(db, 'customers', id), data, {merge: true}));
+    await batch.commit();
+  }
+  if (writes.length) {
+    const cs = await getDocs(collection(db, 'customers'));
+    S.customers = new Map(cs.docs.map(d => [d.id, {id: d.id, ...d.data()}]));
+  }
+}
+
+// 일정별 신청 수를 고객 목록 기준으로 맞춘다 (신청 페이지의 잔여석 표시용)
+async function reconcileSeminarCounts() {
+  const counts = {};
+  S.customers.forEach(c => { if (c.seminar && c.seminar.id) counts[c.seminar.id] = (counts[c.seminar.id] || 0) + 1; });
+  for (const sm of S.seminars) {
+    const n = counts[sm.id] || 0;
+    if ((sm.applied || 0) !== n) {
+      try { await updateDoc(doc(db, 'seminars', sm.id), {applied: n}); sm.applied = n; }
+      catch (e) { console.warn('신청 수 맞추기 실패', sm.id, e.code || e.message); }
+    }
+  }
+}
+
+const DOW = '일월화수목금토';
+const pad2 = n => String(n).padStart(2, '0');
+function seminarWhen(sm, short = false) {
+  const m = ms(sm.startAt); if (!m) return '';
+  const d = new Date(m);
+  return short ? `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]})`
+    : `${d.getMonth() + 1}월 ${d.getDate()}일(${DOW[d.getDay()]}) ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+const seminarLabel = sm => seminarWhen(sm) + (sm.place ? ` · ${sm.place}` : '');
+const seminarOf = c => c.seminar && c.seminar.id ? S.seminars.find(x => x.id === c.seminar.id) : null;
+function seminarShort(c) {
+  if (!c.seminar || !c.seminar.id) return '';
+  const sm = seminarOf(c);
+  return sm ? seminarWhen(sm, true) : (c.seminar.label || '').split(' ')[0] + ' ' + ((c.seminar.label || '').split(' ')[1] || '');
+}
+
+const IS_DELETE = v => !!v && typeof v.isEqual === 'function' && v.isEqual(deleteField());
+const IS_NOW = v => !!v && typeof v.isEqual === 'function' && v.isEqual(serverTimestamp());
+
+async function saveCustomer(id, patch, msg = '저장했어요') {
+  const data = {...patch, updatedAt: serverTimestamp(), updatedBy: S.me.name};
+  try {
+    await updateDoc(doc(db, 'customers', id), data);
+    const c = S.customers.get(id);
+    for (const [k, v] of Object.entries(patch)) {
+      if (IS_DELETE(v)) delete c[k];
+      else c[k] = IS_NOW(v) ? Timestamp.now() : v;
+    }
+    c.updatedAt = Timestamp.now(); c.updatedBy = S.me.name;
+    toast(msg);
+    render();
+  } catch (e) {
+    console.error(e);
+    toast('저장 실패: ' + (e.code || e.message));
+  }
+}
+
+/* ═══════════════════════════════════════
+   화면 구성
+═══════════════════════════════════════ */
+function tabs() {
+  const me = S.me, t = [];
+  t.push(['customers', me.isAdmin ? '고객' : me.isCaller && !me.isLeader ? '내 콜링' : me.isLeader && !me.isCaller ? '내 고객' : '내 담당']);
+  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '리더·콜러 등록']);
+  return t;
+}
+
+function render() {
+  const me = S.me;
+  const roleNames = [me.isSuper ? '최고 관리자' : me.isAdmin && '관리자', me.isLeader && '리더', me.isCaller && '콜러'].filter(Boolean).join('·');
+  $('#me-label').textContent = `${me.name} (${roleNames})`;
+  const ts = tabs();
+  if (!ts.some(([k]) => k === S.tab)) S.tab = ts[0][0];
+  $('#nav').innerHTML = ts.map(([k, l]) => `<button data-tab="${k}" class="${k === S.tab ? 'on' : ''}">${l}</button>`).join('');
+  const main = $('#main');
+  if (S.tab === 'customers') main.innerHTML = renderCustomers();
+  if (S.tab === 'seminars') main.innerHTML = renderSeminars();
+  if (S.tab === 'dashboard') main.innerHTML = renderDashboard();
+  if (S.tab === 'readings') main.innerHTML = renderReadings();
+  if (S.tab === 'staff') main.innerHTML = renderStaff();
+  renderDrawer();
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab]');
+  if (t) { S.tab = t.dataset.tab; render(); }
+});
+
+/* ── 고객 목록 ── */
+const FILTERS = [
+  ['all', '전체'], ['before', '연락 전'], ['done', '연락함'],
+  ['no_answer', '부재'], ['confirmed', '확답'], ['seminar', '세미나 신청'],
+  ['no_caller', '콜러 미배정', 'admin'], ['no_leader', '리더 미배정', 'admin'],
+];
+function filteredCustomers() {
+  const q = S.search.trim().toLowerCase().replace(/-/g, '');
+  return [...S.customers.values()].filter(c => {
+    const f = S.filter;
+    if (f === 'before' && c.contactStatus === 'done') return false;
+    if (f === 'done' && c.contactStatus !== 'done') return false;
+    if (f === 'no_answer' && c.callResult !== 'no_answer') return false;
+    if (f === 'confirmed' && c.callResult !== 'confirmed') return false;
+    if (f === 'seminar' && !(c.seminar && c.seminar.id)) return false;
+    if (f === 'no_caller' && c.callerUid) return false;
+    if (f === 'no_leader' && c.leaderUid) return false;
+    if (S.stageFilter !== '' && stageOf(c) !== +S.stageFilter) return false;
+    if (q) {
+      const hay = [c.name, c.phone, ...(c.codes || []), c.src, c.leaderName, c.callerName].join(' ').toLowerCase().replace(/-/g, '');
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    // 연락 전이 위로, 그 안에서는 최신순
+    const pa = a.contactStatus === 'done' ? 1 : 0, pb = b.contactStatus === 'done' ? 1 : 0;
+    return pa - pb || ms(b.lastContactAt) - ms(a.lastContactAt);
+  });
+}
+
+function contactBadge(c) {
+  return c.contactStatus === 'done' ? '<span class="badge b-done">연락함</span>' : '<span class="badge b-before">연락 전</span>';
+}
+function resultBadge(c) {
+  if (!c.callResult) return '';
+  const cls = c.callResult === 'confirmed' ? 'b-done' : c.callResult === 'declined' ? 'b-bad' : 'b-before';
+  const n = c.callResult === 'no_answer' && c.callAttempts ? ` ${c.callAttempts}회` : '';
+  return `<span class="badge ${cls}">${CALL_RESULTS[c.callResult]}${n}</span>`;
+}
+const codeCell = c => c.latestCode
+  ? `${esc(c.latestCode)}${c.readingCount > 1 ? ` <span class="muted small">외 ${c.readingCount - 1}</span>` : ''}`
+  : '<span class="muted small">리딩 없음</span>';
+const seminarCell = c => c.seminar && c.seminar.id
+  ? `<span class="badge ${c.attendedAt ? 'b-done' : 'b-muted'}">🗓 ${esc(seminarShort(c))}${c.attendedAt ? ' 참석' : ''}</span>`
+  : '<span class="muted">-</span>';
+const stageBadge = c => `<span class="badge b-stage">${STAGES[stageOf(c)].k}</span>`;
+
+function renderCustomers() {
+  const me = S.me;
+  const list = filteredCustomers();
+  const all = [...S.customers.values()];
+  const before = all.filter(c => c.contactStatus !== 'done').length;
+  const title = me.isAdmin ? '고객' : '내 담당 고객';
+  const autoBtn = me.isAdmin ? `<button class="btn sm" data-action="auto-assign">콜러 미배정 자동 배정</button>` : '';
+  const chips = FILTERS.filter(f => !f[2] || me.isAdmin)
+    .map(([k, l]) => `<button class="chip ${S.filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('');
+  const stageOpts = `<option value="">전체 단계</option>` + STAGES.map((s, i) => `<option value="${i}" ${S.stageFilter === String(i) ? 'selected' : ''}>${s.k} ${s.name}</option>`).join('');
+
+  const rows = list.map(c => `
+    <tr data-open="c:${esc(c.id)}">
+      <td><b>${esc(c.name)}</b><div class="muted small">${esc(c.src || '직접')} · ${fmt(c.lastContactAt)}</div></td>
+      <td>${esc(fmtPhone(c.phone))}</td>
+      <td class="code">${codeCell(c)}</td>
+      <td>${seminarCell(c)}</td>
+      <td>${stageBadge(c)}</td>
+      <td>${contactBadge(c)} ${resultBadge(c)}</td>
+      <td>${esc(c.callerName || '') || '<span class="muted">-</span>'}</td>
+      <td>${esc(c.leaderName || '') || '<span class="muted">-</span>'}</td>
+    </tr>`).join('');
+  const cards = list.map(c => `
+    <div class="c-card" data-open="c:${esc(c.id)}">
+      <div class="row1"><span class="name">${esc(c.name)}</span><span class="code">${codeCell(c)}</span></div>
+      <div class="row2">${stageBadge(c)} ${contactBadge(c)} ${resultBadge(c)} ${c.seminar && c.seminar.id ? seminarCell(c) : ''}
+        <span class="muted small">${esc(fmtPhone(c.phone))}</span></div>
+      <div class="row2 small muted">콜러 ${esc(c.callerName || '-')} · 리더 ${esc(c.leaderName || '-')} · ${fmt(c.lastContactAt)}</div>
+    </div>`).join('');
+
+  return `
+    <div class="page-title">${title} <span class="sub">${all.length}명 · 연락 전 ${before}명</span> ${autoBtn}</div>
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="이름·전화번호·리딩 코드 검색" value="${esc(S.search)}">
+      <select id="stage-filter">${stageOpts}</select>
+    </div>
+    <div class="toolbar chips">${chips}</div>
+    ${list.length ? `
+      <div class="table-wrap customers"><table>
+        <thead><tr><th>이름</th><th>전화번호</th><th>리딩 코드</th><th>세미나</th><th>단계</th><th>연락</th><th>콜러</th><th>담당 리더</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+      <div class="cards">${cards}</div>`
+    : `<div class="empty">${S.customers.size ? '조건에 맞는 고객이 없어요' : me.isAdmin ? '아직 연락처를 남긴 고객이 없어요' : '아직 배정된 고객이 없어요'}</div>`}`;
+}
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'search') {
+    S.search = e.target.value;
+    const pos = e.target.selectionStart;
+    render();
+    const s = $('#search'); s.focus(); s.setSelectionRange(pos, pos);
+  }
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'stage-filter') { S.stageFilter = e.target.value; render(); }
+});
+document.addEventListener('click', e => {
+  const f = e.target.closest('[data-filter]');
+  if (f) { S.filter = f.dataset.filter; render(); return; }
+  const o = e.target.closest('[data-open]');
+  if (o) { S.openId = o.dataset.open; renderDrawer(); }
+});
+
+/* ── 상세 ── */
+function renderDrawer() {
+  const root = $('#drawer-root');
+  if (!S.openId) { root.innerHTML = ''; root.dataset.openId = ''; return; }
+  const [kind, id] = [S.openId.slice(0, 1), S.openId.slice(2)];
+  let html = '';
+  if (kind === 'c') {
+    const c = S.customers.get(id);
+    if (!c) { S.openId = null; root.innerHTML = ''; return; }
+    html = customerDetail(c);
+  } else {
+    const r = S.readings.find(x => x.id === id);
+    if (!r) { S.openId = null; root.innerHTML = ''; return; }
+    html = readingDetail(r);
+  }
+  // 다른 항목을 저장해 다시 그려져도, 같은 고객에서 작성 중이던 메모와 스크롤은 유지
+  const old = root.querySelector('#memo');
+  const draft = old && old.dataset.dirty === '1' && old.dataset.id === id ? old.value : null;
+  const sameDrawer = root.dataset.openId === S.openId;
+  const prevScroll = sameDrawer ? (root.querySelector('.drawer')?.scrollTop || 0) : 0;
+  root.innerHTML = `<div class="overlay" data-close><div class="drawer">${html}</div></div>`;
+  root.dataset.openId = S.openId;
+  root.querySelector('.drawer').scrollTop = prevScroll;
+  const m = root.querySelector('#memo');
+  if (m && draft !== null) { m.value = draft; m.dataset.dirty = '1'; }
+}
+document.addEventListener('click', e => {
+  if (e.target.matches('[data-close]') || e.target.closest('[data-action=close]')) { S.openId = null; renderDrawer(); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.openId) { S.openId = null; renderDrawer(); } });
+
+function readingBlock(r, title = '리딩') {
+  if (!r) return '';
+  const cards = (r.cards || []).map(c => `<span>${esc(c.pos)} · ${esc(c.name)}${c.reversed ? ' (역)' : ''}</span>`).join('');
+  const rd = r.readings;
+  const texts = rd ? [['과거', rd.past], ['현재', rd.present], ['미래', rd.future]]
+      .map(([k, v]) => v ? `<div class="reading-text"><b>${k}</b> ${esc(v)}</div>` : '').join('')
+    : '<div class="muted small" style="margin-bottom:10px">AI 해석 없이 기본 해석으로 진행된 리딩</div>';
+  const themes = (r.themes || []).map((t, i) => `
+    <div class="theme ${i ? 'locked' : ''}">
+      <b>주제 ${i + 1}. ${esc(t.title)}</b> ${i ? '<span class="badge b-muted">리더와 이야기할 주제</span>' : '<span class="badge b-done">화면에서 공개</span>'}
+      <div class="muted small">${esc(t.teaser)}</div>
+      ${i === 0 && r.openTheme ? `<div class="small" style="margin-top:6px">${esc(r.openTheme)}</div>` : ''}
+    </div>`).join('');
+  return `
+    <div class="panel">
+      <h3>${title} <span class="code">${esc(r.code)}</span> <span class="muted small">${fmt(r.createdAt)}</span></h3>
+      <dl class="kv" style="margin-bottom:10px">
+        <dt>질문</dt><dd>${esc(r.question) || '<span class="muted">(없음)</span>'}</dd>
+        <dt>생년월일</dt><dd>${esc(r.birth) || '<span class="muted">-</span>'}</dd>
+      </dl>
+      <div class="cards-mini">${cards}</div>
+      ${texts}
+      ${themes ? `<h3 style="margin-top:12px">카드가 가리키는 주제</h3>${themes}` : ''}
+    </div>`;
+}
+
+function staffOptions(role, selectedUid) {
+  const list = S.users.filter(u => u.roles && u.roles[role]);
+  const counts = {};
+  S.customers.forEach(c => { const k = role === 'leader' ? c.leaderUid : c.callerUid; if (k) counts[k] = (counts[k] || 0) + 1; });
+  return `<option value="">-- 미배정 --</option>` + list.map(u => {
+    const n = counts[u.uid] || 0;
+    const cap = role === 'leader' ? ` (${n}/${LEADER_CAP}${n >= LEADER_CAP ? ' 상한' : ''})` : ` (${n}명)`;
+    return `<option value="${esc(u.uid)}" ${u.uid === selectedUid ? 'selected' : ''}>${esc(u.name)}${cap}</option>`;
+  }).join('');
+}
+
+function customerDetail(c) {
+  const me = S.me;
+  const canAssign = me.isAdmin;
+  const canCall = me.isAdmin || (me.isCaller && c.callerUid === me.uid);
+  const canLead = me.isAdmin || (me.isLeader && c.leaderUid === me.uid);
+  const st = stageOf(c);
+  const id = esc(c.id);
+
+  const assign = canAssign ? `
+      <div class="field"><label>콜러</label><select data-assign="caller" data-id="${id}">${staffOptions('caller', c.callerUid)}</select></div>
+      <div class="field"><label>담당 리더</label><select data-assign="leader" data-id="${id}">${staffOptions('leader', c.leaderUid)}</select></div>
+      ${(c.leaderHistory || []).length > 1 ? `<div class="notice">담당 리더가 ${c.leaderHistory.length - 1}번 바뀌었어요. 리더가 바뀌면 관계가 처음부터 다시 시작돼요.</div>` : ''}`
+    : `<dl class="kv"><dt>콜러</dt><dd>${esc(c.callerName || '-')}</dd><dt>담당 리더</dt><dd>${esc(c.leaderName || '-')}</dd></dl>`;
+
+  const attempts = c.callAttempts || 0;
+  const calling = `
+    <div class="field"><label>연락 상태</label>
+      <div class="seg">
+        <button data-contact="before" data-id="${id}" class="${c.contactStatus !== 'done' ? 'on' : ''}" ${canCall || canLead ? '' : 'disabled'}>연락 전</button>
+        <button data-contact="done" data-id="${id}" class="${c.contactStatus === 'done' ? 'on' : ''}" ${canCall || canLead ? '' : 'disabled'}>연락함</button>
+      </div>
+    </div>
+    <div class="field"><label>안내 결과 ${c.firstCallAt ? `<span class="muted">· 첫 연락 ${fmt(c.firstCallAt)}</span>` : ''}</label>
+      <div class="btn-row">
+        <button class="btn sm" data-call="no_answer" data-id="${id}" ${canCall ? '' : 'disabled'}>부재 +1 ${attempts ? `(${attempts}회)` : ''}</button>
+        <button class="btn sm ${c.callResult === 'confirmed' ? 'primary' : ''}" data-call="confirmed" data-id="${id}" ${canCall ? '' : 'disabled'}>참가 확답</button>
+        <button class="btn sm ${c.callResult === 'declined' ? 'primary' : ''}" data-call="declined" data-id="${id}" ${canCall ? '' : 'disabled'}>거절</button>
+        ${c.callResult ? `<button class="btn sm" data-call="reset" data-id="${id}" ${canCall ? '' : 'disabled'}>결과 지우기</button>` : ''}
+        ${resultBadge(c)}
+      </div>
+      ${attempts >= 3 && c.callResult === 'no_answer' ? '<div class="notice">부재 3회 — 카카오톡으로 안내 한 번 남기고 전화는 멈춰주세요.</div>' : ''}
+    </div>`;
+
+  const MILESTONES = [
+    ['attendedAt', '세미나 참석', 'L2 (담당 리더가 있어야 반영)'],
+    ['groupSecondAt', '그룹 모임 2회차 출석', 'L3'],
+    ['counselorMatchedAt', '개별 상담사 연결', 'L4'],
+    ['referralAt', '지인 소개 발생', 'L5'],
+  ];
+  const progress = MILESTONES.map(([k, l, s]) => `
+    <label class="check">
+      <input type="checkbox" data-milestone="${k}" data-id="${id}" ${c[k] ? 'checked' : ''} ${canLead ? '' : 'disabled'}>
+      ${l} <span class="muted small">${s}</span>
+      <span class="when">${fmt(c[k], false)}</span>
+    </label>`).join('');
+
+  const score = scoreEvents(c);
+  const scoreHtml = score.length
+    ? score.map(s => `<span class="badge b-muted">${esc(s.name)} +${s.pts} ${esc(s.what)}</span>`).join(' ')
+    : '<span class="muted small">아직 없음</span>';
+
+  return `
+    <div class="drawer-head">
+      <div>
+        <h2>${esc(c.name)} ${stageBadge(c)} ${contactBadge(c)}</h2>
+        <div class="small muted">${STAGES[st].k} ${STAGES[st].name} — ${STAGES[st].desc}</div>
+      </div>
+      <button class="btn" data-action="close">닫기</button>
+    </div>
+    <div class="drawer-body">
+      <div class="panel">
+        <dl class="kv">
+          <dt>전화번호</dt><dd><a href="tel:${esc(c.phone)}"><b>${esc(fmtPhone(c.phone))}</b></a></dd>
+          <dt>리딩 코드</dt><dd class="code">${(c.codes || []).map(esc).join(', ') || '<span class="muted">리딩 없음 (세미나로 바로 신청)</span>'}</dd>
+          <dt>유입</dt><dd>${esc(c.src) || '<span class="muted">직접</span>'}</dd>
+          <dt>사는 곳</dt><dd>${esc(c.region) || '<span class="muted">-</span>'}</dd>
+          <dt>소식 수신</dt><dd>${c.marketingConsent ? '동의' : '<span class="muted">미동의 — 모임 홍보 연락은 하지 않아요</span>'}</dd>
+          <dt>접수</dt><dd>${fmt(c.firstContactAt)}${c.readingCount > 1 ? ` · 리딩 ${c.readingCount}회 (최근 ${fmt(c.lastContactAt)})` : ''}</dd>
+          ${c.updatedBy ? `<dt>마지막 수정</dt><dd class="muted">${esc(c.updatedBy)} · ${fmt(c.updatedAt)}</dd>` : ''}
+        </dl>
+      </div>
+
+      ${seminarPanel(c)}
+      <div class="panel"><h3>배정</h3>${assign}</div>
+      <div class="panel"><h3>콜링</h3>${calling}</div>
+
+      <div class="panel">
+        <h3>메모</h3>
+        <textarea id="memo" data-id="${id}" maxlength="500" placeholder="주제 / 고객이 쓴 표현 그대로 / 다음에 물어볼 것" ${canCall || canLead ? '' : 'disabled'}>${esc(c.memo || '')}</textarea>
+        <div class="btn-row" style="margin-top:8px;justify-content:flex-end">
+          <button class="btn sm primary" data-save-memo="${id}" ${canCall || canLead ? '' : 'disabled'}>메모 저장</button>
+        </div>
+      </div>
+
+      <div class="panel"><h3>진행 단계</h3>${progress}
+        <div style="margin-top:10px" class="small"><span class="muted">실적 점수</span> ${scoreHtml}</div>
+      </div>
+
+      ${readingBlock(c.latest, c.readingCount > 1 ? '최근 리딩' : '리딩')}
+
+      ${me.isAdmin ? `<div class="btn-row" style="justify-content:flex-end">
+        <button class="btn sm danger" data-delete-customer="${id}">고객 정보 삭제 (파기 요청 시)</button></div>` : ''}
+    </div>`;
+}
+
+function seminarPanel(c) {
+  const me = S.me;
+  const has = c.seminar && c.seminar.id;
+  if (!has && !me.isAdmin) return '';
+  const sm = seminarOf(c);
+  const label = sm ? seminarLabel(sm) : has ? (c.seminar.label || '(삭제된 일정)') : '';
+  const now = Date.now();
+  const options = S.seminars.filter(x => ms(x.startAt) > now - 86400e3 || (has && x.id === c.seminar.id))
+    .sort((a, b) => ms(a.startAt) - ms(b.startAt))
+    .map(x => `<option value="${esc(x.id)}" ${has && x.id === c.seminar.id ? 'selected' : ''}>${esc(seminarLabel(x))} (${x.applied || 0}/${x.capacity || 0})</option>`).join('');
+  return `<div class="panel"><h3>세미나</h3>
+    ${has ? `<dl class="kv" style="margin-bottom:10px">
+      <dt>신청 일정</dt><dd><b>${esc(label)}</b></dd>
+      <dt>신청</dt><dd>${fmt(c.seminarAppliedAt) || '<span class="muted">관리자 지정</span>'}</dd>
+      ${c.seminarQuestion ? `<dt>궁금한 것</dt><dd>${esc(c.seminarQuestion)}</dd>` : ''}
+    </dl>` : '<div class="muted small" style="margin-bottom:10px">세미나 신청 없음</div>'}
+    ${me.isAdmin ? `<div class="field"><label>${has ? '일정 옮기기 / 취소' : '일정 지정'}</label>
+      <select data-seminar-assign="${esc(c.id)}"><option value="">${has ? '-- 신청 취소 --' : '-- 선택 --'}</option>${options}</select></div>` : ''}
+  </div>`;
+}
+
+function readingDetail(r) {
+  return `
+    <div class="drawer-head">
+      <div><h2>${esc(r.name)} <span class="badge b-muted">연락처 없음</span></h2>
+        <div class="small muted">유입 ${esc(r.src) || '직접'} · ${fmt(r.createdAt)}</div></div>
+      <button class="btn" data-action="close">닫기</button>
+    </div>
+    <div class="drawer-body">
+      ${readingBlock(r)}
+      <div class="btn-row" style="justify-content:flex-end">
+        <button class="btn sm danger" data-delete-reading="${esc(r.id)}">리딩 삭제</button>
+      </div>
+    </div>`;
+}
+
+/* ── 상세 동작 ── */
+document.addEventListener('change', async e => {
+  const a = e.target.closest('[data-assign]');
+  if (a) {
+    const c = S.customers.get(a.dataset.id);
+    const uid = a.value;
+    const u = S.users.find(x => x.uid === uid);
+    if (a.dataset.assign === 'caller') {
+      await saveCustomer(c.id, uid
+        ? {callerUid: uid, callerName: u.name, callerAssignedAt: serverTimestamp()}
+        : {callerUid: deleteField(), callerName: deleteField(), callerAssignedAt: deleteField()},
+        uid ? `콜러: ${u.name}` : '콜러 배정 해제');
+    } else {
+      if (uid) {
+        const n = [...S.customers.values()].filter(x => x.leaderUid === uid).length;
+        if (n >= LEADER_CAP && !confirm(`${u.name} 리더는 이미 ${n}명을 담당하고 있어요 (상한 ${LEADER_CAP}명). 그래도 배정할까요?`)) { render(); return; }
+      }
+      const hist = [...(c.leaderHistory || [])];
+      if (uid) hist.push({uid, name: u.name, at: Timestamp.now()});
+      await saveCustomer(c.id, uid
+        ? {leaderUid: uid, leaderName: u.name, leaderAssignedAt: c.leaderAssignedAt || serverTimestamp(), leaderHistory: hist}
+        : {leaderUid: deleteField(), leaderName: deleteField()},
+        uid ? `담당 리더: ${u.name}` : '리더 배정 해제');
+    }
+    return;
+  }
+  const sa = e.target.closest('[data-seminar-assign]');
+  if (sa) {
+    const sm = S.seminars.find(x => x.id === sa.value);
+    await saveCustomer(sa.dataset.seminarAssign,
+      sm ? {seminar: {id: sm.id, label: seminarLabel(sm)}} : {seminar: deleteField()},
+      sm ? `세미나: ${seminarWhen(sm)}` : '세미나 신청을 취소했어요');
+    await reconcileSeminarCounts();
+    render();
+    return;
+  }
+  const m = e.target.closest('[data-milestone]');
+  if (m) {
+    await saveCustomer(m.dataset.id, {[m.dataset.milestone]: m.checked ? serverTimestamp() : deleteField()});
+  }
+});
+
+document.addEventListener('input', e => { if (e.target.id === 'memo') e.target.dataset.dirty = '1'; });
+
+document.addEventListener('click', async e => {
+  const ct = e.target.closest('[data-contact]');
+  if (ct && !ct.disabled) {
+    const c = S.customers.get(ct.dataset.id);
+    const patch = {contactStatus: ct.dataset.contact};
+    const byCaller = S.me.isAdmin || c.callerUid === S.me.uid;
+    if (ct.dataset.contact === 'done' && !c.firstCallAt && byCaller) patch.firstCallAt = serverTimestamp();
+    await saveCustomer(c.id, patch, ct.dataset.contact === 'done' ? '연락함으로 표시했어요' : '연락 전으로 되돌렸어요');
+    return;
+  }
+  const cl = e.target.closest('[data-call]');
+  if (cl && !cl.disabled) {
+    const c = S.customers.get(cl.dataset.id);
+    const v = cl.dataset.call;
+    const patch = {};
+    if (v === 'no_answer') { patch.callResult = 'no_answer'; patch.callAttempts = (c.callAttempts || 0) + 1; }
+    if (v === 'confirmed') { patch.callResult = 'confirmed'; patch.confirmedAt = c.confirmedAt || serverTimestamp(); patch.contactStatus = 'done'; }
+    if (v === 'declined')  { patch.callResult = 'declined'; patch.contactStatus = 'done'; }
+    if (v === 'reset')     { patch.callResult = ''; patch.callAttempts = 0; patch.confirmedAt = deleteField(); }
+    if (v !== 'reset' && !c.firstCallAt) patch.firstCallAt = serverTimestamp();
+    await saveCustomer(c.id, patch, v === 'reset' ? '안내 결과를 지웠어요' : `안내 결과: ${CALL_RESULTS[patch.callResult]}`);
+    return;
+  }
+  const sm = e.target.closest('[data-save-memo]');
+  if (sm && !sm.disabled) {
+    const memo = $('#memo').value.slice(0, 500);
+    $('#memo').dataset.dirty = '0';
+    await saveCustomer(sm.dataset.saveMemo, {memo}, '메모를 저장했어요');
+    return;
+  }
+  const dc = e.target.closest('[data-delete-customer]');
+  if (dc) {
+    const c = S.customers.get(dc.dataset.deleteCustomer);
+    const typed = prompt(`${c.name}님의 고객 정보와 리딩 ${c.readingCount || 0}건, 세미나 신청 ${c.applicationCount || 0}건을 모두 삭제합니다. 되돌릴 수 없어요.\n확인하려면 전화번호 뒤 4자리를 입력하세요.`);
+    if (typed === null) return;
+    if (typed.trim() !== c.phone.slice(-4)) { toast('뒤 4자리가 맞지 않아 취소했어요'); return; }
+    try {
+      const batch = writeBatch(db);
+      S.readings.filter(r => r.phone === c.phone).forEach(r => batch.delete(doc(db, 'readings', r.id)));
+      S.applications.filter(a => a.phone === c.phone).forEach(a => batch.delete(doc(db, 'seminarApplications', a.id)));
+      batch.delete(doc(db, 'customers', c.id));
+      await batch.commit();
+      S.readings = S.readings.filter(r => r.phone !== c.phone);
+      S.applications = S.applications.filter(a => a.phone !== c.phone);
+      await reconcileSeminarCounts();
+      S.customers.delete(c.id);
+      S.openId = null;
+      toast('삭제했어요');
+      render();
+    } catch (err) { toast('삭제 실패: ' + (err.code || err.message)); }
+    return;
+  }
+  const dr = e.target.closest('[data-delete-reading]');
+  if (dr) {
+    if (!confirm('이 리딩을 삭제할까요? 되돌릴 수 없어요.')) return;
+    try {
+      await deleteDoc(doc(db, 'readings', dr.dataset.deleteReading));
+      S.readings = S.readings.filter(r => r.id !== dr.dataset.deleteReading);
+      S.openId = null;
+      toast('삭제했어요');
+      render();
+    } catch (err) { toast('삭제 실패: ' + (err.code || err.message)); }
+    return;
+  }
+  const aa = e.target.closest('[data-action=auto-assign]');
+  if (aa) autoAssignCallers();
+});
+
+// 콜러 미배정 고객을 담당 인원이 적은 콜러부터 순서대로 배정
+async function autoAssignCallers() {
+  const callers = S.users.filter(u => u.roles && u.roles.caller);
+  if (!callers.length) { toast('등록된 콜러가 없어요'); return; }
+  const targets = [...S.customers.values()].filter(c => !c.callerUid)
+    .sort((a, b) => ms(a.firstContactAt) - ms(b.firstContactAt));
+  if (!targets.length) { toast('콜러 미배정 고객이 없어요'); return; }
+  if (!confirm(`콜러 미배정 고객 ${targets.length}명을 콜러 ${callers.length}명에게 나눠 배정할까요?`)) return;
+  const load = Object.fromEntries(callers.map(u => [u.uid, 0]));
+  S.customers.forEach(c => { if (c.callerUid in load) load[c.callerUid]++; });
+  const batch = writeBatch(db);
+  for (const c of targets) {
+    const u = callers.reduce((a, b) => load[a.uid] <= load[b.uid] ? a : b);
+    load[u.uid]++;
+    const patch = {callerUid: u.uid, callerName: u.name, callerAssignedAt: Timestamp.now(), updatedAt: serverTimestamp(), updatedBy: S.me.name};
+    batch.update(doc(db, 'customers', c.id), patch);
+    Object.assign(c, patch, {updatedAt: Timestamp.now()});
+  }
+  try {
+    await batch.commit();
+    toast(`${targets.length}명 배정했어요`);
+  } catch (e) {
+    toast('배정 실패: ' + (e.code || e.message));
+    await loadAll();
+  }
+  render();
+}
+
+/* ── 세미나 일정 ── */
+function toLocalInput(m) {
+  if (!m) return '';
+  const d = new Date(m);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+function renderSeminars() {
+  const now = Date.now();
+  const edit = S.editSeminarId ? S.seminars.find(x => x.id === S.editSeminarId) : null;
+  const all = [...S.seminars].sort((a, b) => ms(a.startAt) - ms(b.startAt));
+  const upcoming = all.filter(x => ms(x.startAt) > now - 86400e3);
+  const past = all.filter(x => ms(x.startAt) <= now - 86400e3).reverse();
+  const today = new Date();
+  const thisMonth = all.filter(x => { const d = new Date(ms(x.startAt)); return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth(); }).length;
+  const applicants = id => [...S.customers.values()].filter(c => c.seminar && c.seminar.id === id)
+    .sort((a, b) => ms(a.seminarAppliedAt) - ms(b.seminarAppliedAt));
+
+  const card = sm => {
+    const list = applicants(sm.id);
+    const cap = sm.capacity || 0, n = list.length;
+    const confirmed = list.filter(c => c.confirmedAt).length, attended = list.filter(c => c.attendedAt).length;
+    const rows = list.map(c => `<tr>
+        <td data-open="c:${esc(c.id)}"><b>${esc(c.name)}</b> <span class="muted small">${esc(c.src || '직접')}</span></td>
+        <td><a href="tel:${esc(c.phone)}">${esc(fmtPhone(c.phone))}</a></td>
+        <td>${contactBadge(c)} ${resultBadge(c)}</td>
+        <td>${esc(c.callerName || '-')}</td>
+        <td><label class="check" style="border:none;padding:0"><input type="checkbox" data-milestone="attendedAt" data-id="${esc(c.id)}" ${c.attendedAt ? 'checked' : ''}> 참석</label></td>
+      </tr>`).join('');
+    return `<div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <div>
+          <h3 style="margin-bottom:2px">${esc(seminarWhen(sm))} ${sm.open ? '<span class="badge b-done">신청 받는 중</span>' : '<span class="badge b-muted">신청 닫힘</span>'}</h3>
+          <div class="small muted">${esc(sm.place || '')}${sm.title ? ` · ${esc(sm.title)}` : ''}${sm.note ? ` · ${esc(sm.note)}` : ''}</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn sm" data-seminar-toggle="${esc(sm.id)}">${sm.open ? '신청 닫기' : '신청 열기'}</button>
+          <button class="btn sm" data-seminar-edit="${esc(sm.id)}">수정</button>
+          <button class="btn sm danger" data-seminar-delete="${esc(sm.id)}">삭제</button>
+        </div>
+      </div>
+      <div style="margin:10px 0 6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap" class="small">
+        <b>신청 ${n} / ${cap}석</b>${n > cap ? ' <span class="badge b-bad">정원 초과</span>' : ''}
+        <span class="muted">확답 ${confirmed} · 참석 ${attended}</span>
+      </div>
+      <div style="height:8px;background:var(--brand-soft);border-radius:6px;overflow:hidden;margin-bottom:10px">
+        <div style="height:100%;width:${cap ? Math.min(100, n / cap * 100) : 0}%;background:var(--brand)"></div></div>
+      ${n ? `<div class="table-wrap"><table><thead><tr><th>이름</th><th>전화번호</th><th>연락</th><th>콜러</th><th>참석</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>` : '<div class="muted small">아직 신청자가 없어요</div>'}
+    </div>`;
+  };
+
+  return `
+    <div class="page-title">세미나 <span class="sub">이번 달 ${thisMonth}회 · 신청 페이지 <a href="/seminar.html" target="_blank" rel="noopener">/seminar.html</a></span></div>
+    <div class="panel">
+      <h3>${edit ? '일정 수정' : '새 일정 추가'}</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 12px">
+        <div class="field"><label for="sf-date">날짜·시간</label><input id="sf-date" type="datetime-local" value="${edit ? toLocalInput(ms(edit.startAt)) : ''}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px"></div>
+        <div class="field"><label for="sf-place">장소</label><input id="sf-place" type="text" maxlength="40" placeholder="예: 잠실 ○○카페" value="${esc(edit ? edit.place || '' : '')}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px"></div>
+        <div class="field"><label for="sf-capacity">정원</label><input id="sf-capacity" type="number" min="1" max="200" value="${edit ? edit.capacity || 10 : 10}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px"></div>
+        <div class="field"><label for="sf-title">제목 (선택)</label><input id="sf-title" type="text" maxlength="30" placeholder="예: 10월 첫 번째 모임" value="${esc(edit ? edit.title || '' : '')}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px"></div>
+      </div>
+      <div class="field"><label for="sf-note">신청 페이지 안내 한 줄 (선택)</label><input id="sf-note" type="text" maxlength="60" placeholder="예: 참가비 2만원 · 음료 1잔 포함" value="${esc(edit ? edit.note || '' : '')}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px"></div>
+      <div class="btn-row" style="justify-content:flex-end">
+        ${edit ? '<button class="btn" data-seminar-cancel>취소</button>' : ''}
+        <button class="btn primary" data-seminar-save>${edit ? '수정 저장' : '일정 추가 (바로 신청 받기)'}</button>
+      </div>
+    </div>
+    ${upcoming.length ? upcoming.map(card).join('') : '<div class="empty">예정된 일정이 없어요. 위에서 추가하면 신청 페이지에 바로 나타나요.</div>'}
+    ${past.length ? `<div class="page-title" style="margin-top:20px">지난 일정</div>${past.map(card).join('')}` : ''}`;
+}
+
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-seminar-cancel]')) { S.editSeminarId = null; render(); return; }
+  const ed = e.target.closest('[data-seminar-edit]');
+  if (ed) { S.editSeminarId = ed.dataset.seminarEdit; render(); window.scrollTo({top: 0}); return; }
+
+  if (e.target.closest('[data-seminar-save]')) {
+    const date = $('#sf-date').value;
+    const capacity = parseInt($('#sf-capacity').value, 10);
+    if (!date) { toast('날짜·시간을 입력해주세요'); return; }
+    if (!(capacity > 0)) { toast('정원을 1 이상으로 입력해주세요'); return; }
+    const data = {
+      startAt: Timestamp.fromDate(new Date(date)),
+      place: $('#sf-place').value.trim(),
+      title: $('#sf-title').value.trim(),
+      note: $('#sf-note').value.trim(),
+      capacity,
+    };
+    try {
+      if (S.editSeminarId) {
+        await updateDoc(doc(db, 'seminars', S.editSeminarId), data);
+        Object.assign(S.seminars.find(x => x.id === S.editSeminarId), data);
+        toast('일정을 수정했어요');
+      } else {
+        const ref = doc(collection(db, 'seminars'));
+        const full = {...data, open: true, applied: 0, createdAt: serverTimestamp()};
+        await setDoc(ref, full);
+        S.seminars.push({id: ref.id, ...full, createdAt: Timestamp.now()});
+        toast('일정을 추가했어요. 신청 페이지에 바로 보여요');
+      }
+      S.editSeminarId = null;
+      render();
+    } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }
+    return;
+  }
+
+  const tg = e.target.closest('[data-seminar-toggle]');
+  if (tg) {
+    const sm = S.seminars.find(x => x.id === tg.dataset.seminarToggle);
+    try {
+      await updateDoc(doc(db, 'seminars', sm.id), {open: !sm.open});
+      sm.open = !sm.open;
+      toast(sm.open ? '신청을 열었어요' : '신청을 닫았어요');
+      render();
+    } catch (err) { toast('변경 실패: ' + (err.code || err.message)); }
+    return;
+  }
+
+  const del = e.target.closest('[data-seminar-delete]');
+  if (del) {
+    const sm = S.seminars.find(x => x.id === del.dataset.seminarDelete);
+    const n = [...S.customers.values()].filter(c => c.seminar && c.seminar.id === sm.id).length;
+    if (!confirm(`${seminarLabel(sm)} 일정을 삭제할까요?` + (n ? `\n신청자 ${n}명의 고객 정보에는 신청 기록이 그대로 남아요.` : ''))) return;
+    try {
+      await deleteDoc(doc(db, 'seminars', sm.id));
+      S.seminars = S.seminars.filter(x => x.id !== sm.id);
+      toast('일정을 삭제했어요');
+      render();
+    } catch (err) { toast('삭제 실패: ' + (err.code || err.message)); }
+  }
+});
+
+/* ── 연락처 없는 리딩 ── */
+function renderReadings() {
+  const list = S.readings.filter(r => !r.phone);
+  const rows = list.map(r => `
+    <tr data-open="r:${esc(r.id)}">
+      <td class="code">${esc(r.code)}</td><td><b>${esc(r.name)}</b></td>
+      <td class="wrap">${esc(r.question) || '<span class="muted">-</span>'}</td>
+      <td class="muted">${esc(r.src)}</td><td class="muted">${fmt(r.createdAt)}</td>
+    </tr>`).join('');
+  return `
+    <div class="page-title">연락처 없는 리딩 <span class="sub">리딩만 보고 전화번호는 남기지 않은 방문자 ${list.length}명 (L0)</span></div>
+    ${list.length ? `<div class="table-wrap"><table>
+      <thead><tr><th>코드</th><th>이름</th><th>질문</th><th>유입</th><th>일시</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>` : '<div class="empty">없어요</div>'}`;
+}
+
+/* ── 대시보드 ── */
+function renderDashboard() {
+  const cs = [...S.customers.values()];
+  const rs = S.readings;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const atLeast = k => cs.filter(c => stageOf(c) >= k).length;
+  const current = k => cs.filter(c => stageOf(c) === k).length;
+
+  const confirmed = cs.filter(c => c.confirmedAt).length;
+  const attended = cs.filter(c => c.attendedAt).length;
+  const withLeader = cs.filter(c => c.leaderUid);
+  const keptLeader = withLeader.filter(c => (c.leaderHistory || []).length <= 1).length;
+  const referrals = cs.filter(c => c.referralAt).length;
+  const l2 = atLeast(2), l3 = atLeast(3);
+
+  const gng = [
+    ['① L2 → L3 전환율', '필수', pct(l3, l2), '%', 33, `L2 ${l2}명 중 L3 ${l3}명`],
+    ['② L3 누적 인원', '필수', l3, '명', 15, '북극성 지표'],
+    ['③ 확답 → 실제 참석', '', pct(attended, confirmed), '%', 70, `확답 ${confirmed}명 중 참석 ${attended}명`],
+    ['④ 담당 리더 유지율', '', pct(keptLeader, withLeader.length), '%', 90, `리더 배정 ${withLeader.length}명`],
+    ['⑤ 소개로 온 신규', '', referrals, '건', 3, '지인 소개 발생 기록'],
+  ].map(([t, req, v, unit, goal, note]) => {
+    const ok = v !== null && v >= goal;
+    return `<div class="item">
+      <div class="top"><span>${t} ${req ? '<span class="badge b-bad">필수</span>' : ''}</span>
+        <span class="badge ${v === null ? 'b-muted' : ok ? 'b-done' : 'b-before'}">${v === null ? '데이터 없음' : ok ? '충족' : '미달'}</span></div>
+      <div class="v">${v === null ? '-' : v + unit} <span class="muted small">목표 ${goal}${unit} 이상</span></div>
+      <div class="muted small">${note}</div></div>`;
+  }).join('');
+
+  // 유입코드별
+  const src = {};
+  const bucket = k => (src[k || '(직접)'] ||= {r: 0, a: 0, c: 0, ok: 0});
+  rs.forEach(r => bucket(r.src).r++);
+  S.applications.forEach(a => bucket(a.src).a++);
+  cs.forEach(c => { const b = bucket(c.src); b.c++; if (c.confirmedAt) b.ok++; });
+  const srcRows = Object.entries(src).sort((a, b) => (b[1].r + b[1].a) - (a[1].r + a[1].a)).map(([k, v]) =>
+    `<tr><td>${esc(k)}</td><td>${v.r}</td><td>${v.a}</td><td>${v.c}</td><td>${v.ok}</td></tr>`).join('');
+
+  // 실적 점수
+  const sc = {};
+  cs.forEach(c => scoreEvents(c).forEach(ev => {
+    const s = (sc[ev.uid] ||= {name: ev.name, total: 0, items: {}});
+    s.total += ev.pts; s.items[ev.what] = (s.items[ev.what] || 0) + ev.pts;
+  }));
+  const scRows = Object.values(sc).sort((a, b) => b.total - a.total).map(s =>
+    `<tr><td><b>${esc(s.name)}</b></td><td><b>${s.total}</b></td><td class="wrap small muted">${Object.entries(s.items).map(([k, v]) => `${esc(k)} ${v}`).join(' · ')}</td></tr>`).join('');
+
+  // 담당 현황
+  const staffRows = S.users.filter(u => u.roles && (u.roles.leader || u.roles.caller)).map(u => {
+    const asL = cs.filter(c => c.leaderUid === u.uid).length;
+    const asC = cs.filter(c => c.callerUid === u.uid);
+    const pending = asC.filter(c => c.contactStatus !== 'done').length;
+    return `<tr><td>${esc(u.name)}</td>
+      <td>${u.roles.leader ? `${asL} <span class="muted small">/ ${LEADER_CAP}</span>${asL >= LEADER_CAP ? ' <span class="badge b-bad">상한</span>' : ''}` : '<span class="muted">-</span>'}</td>
+      <td>${u.roles.caller ? `${asC.length} ${pending ? `<span class="badge b-before">연락 전 ${pending}</span>` : ''}` : '<span class="muted">-</span>'}</td></tr>`;
+  }).join('');
+
+  return `
+    <div class="page-title">대시보드 <span class="sub">${fmt(Timestamp.now())} 기준</span></div>
+    <div class="stats">
+      <div class="stat"><div class="n">${rs.length}</div><div class="l">전체 리딩</div></div>
+      <div class="stat"><div class="n">${rs.filter(r => ms(r.createdAt) >= today.getTime()).length}</div><div class="l">오늘 리딩</div></div>
+      <div class="stat"><div class="n">${cs.length}</div><div class="l">연락처 남긴 고객 ${rs.length ? `(${pct(rs.filter(r => r.phone).length, rs.length)}%)` : ''}</div></div>
+      <div class="stat"><div class="n">${cs.filter(c => c.seminar && c.seminar.id).length}</div><div class="l">세미나 신청 고객</div></div>
+      <div class="stat"><div class="n">${cs.filter(c => c.contactStatus !== 'done').length}</div><div class="l">연락 전 대기</div></div>
+      <div class="stat"><div class="n">${cs.filter(c => !c.callerUid).length}</div><div class="l">콜러 미배정</div></div>
+    </div>
+
+    <div class="panel"><h3>라포 사다리 <span class="muted small">현재 단계 인원 / 해당 단계 이상 누적</span></h3>
+      <div class="ladder">${STAGES.map((s, i) => `
+        <div class="rung"><div class="n">${current(i)}</div><div class="l">${s.k} ${s.name}</div><div class="l">누적 ${atLeast(i)}</div></div>`).join('')}</div>
+    </div>
+
+    <div class="panel"><h3>Go / No-Go 판정 기준 <span class="muted small">①② 필수 + 나머지 중 2개 이상이면 확장</span></h3>
+      <div class="gng">${gng}
+        <div class="item"><div class="top"><span>⑥ 강의·세미나 관심 표기</span><span class="badge b-muted">수집 안 함</span></div>
+          <div class="muted small">별빛타로 입력 화면에서는 아직 받지 않는 항목이에요.</div></div>
+      </div>
+    </div>
+
+    <div class="panel"><h3>담당 현황</h3>
+      ${staffRows ? `<div class="table-wrap"><table><thead><tr><th>이름</th><th>리더 담당</th><th>콜링 배정</th></tr></thead><tbody>${staffRows}</tbody></table></div>`
+        : '<div class="muted small">등록된 리더·콜러가 없어요</div>'}
+    </div>
+
+    <div class="panel"><h3>실적 점수</h3>
+      ${scRows ? `<div class="table-wrap"><table><thead><tr><th>이름</th><th>점수</th><th>내역</th></tr></thead><tbody>${scRows}</tbody></table></div>`
+        : '<div class="muted small">아직 점수가 쌓이지 않았어요</div>'}
+      <div class="muted small" style="margin-top:8px">배점: 참가 확답 2(콜러) · 실제 참석 3(콜러) · 담당 리더 매칭 5(리더) · 그룹 2회차 출석 10(리더 7·콜러 3) · 개별 상담사 매칭 10(리더) · 지인 소개 10(리더)</div>
+    </div>
+
+    <div class="panel"><h3>유입 경로별</h3>
+      ${srcRows ? `<div class="table-wrap"><table><thead><tr><th>유입 코드</th><th>리딩</th><th>세미나 신청</th><th>고객</th><th>확답</th></tr></thead><tbody>${srcRows}</tbody></table></div>`
+        : '<div class="muted small">데이터 없음</div>'}
+      <div class="muted small" style="margin-top:8px">링크 뒤에 <span class="code">?src=insta</span> 처럼 붙여 배포하면 여기서 구분돼요.</div>
+    </div>`;
+}
+
+/* ── 리더·콜러 등록 ── */
+function renderStaff() {
+  const me = S.me;
+  const byRole = r => S.users.filter(u => u.roles && u.roles[r]);
+  const chipList = (r, label) => {
+    const list = byRole(r);
+    return list.length ? list.map(u => `<span class="staff-chip">${esc(u.name)}
+        ${r !== 'admin' || me.isSuper ? `<button title="${label}에서 해제" data-role="${r}" data-uid="${esc(u.uid)}" data-on="0">✕</button>` : ''}</span>`).join('')
+      : `<span class="muted small">등록된 ${label}가 없어요</span>`;
+  };
+  const users = [...S.users].sort((a, b) => ms(b.createdAt) - ms(a.createdAt));
+  const rows = users.map(u => {
+    const isSuperRow = u.email === SUPER_ADMIN_EMAIL;
+    const r = u.roles || {};
+    const tog = (role, label, allowed) => `<label class="role-toggle">
+        <input type="checkbox" data-role="${role}" data-uid="${esc(u.uid)}" ${r[role] ? 'checked' : ''} ${allowed ? '' : 'disabled'}> ${label}</label>`;
+    return `<tr>
+      <td><b>${esc(u.name)}</b></td><td class="muted">${esc(u.email)}</td>
+      <td>${isSuperRow ? '<span class="badge b-stage">최고 관리자</span> ' : tog('admin', '관리자', me.isSuper)}${tog('leader', '리더', true)}${tog('caller', '콜러', true)}</td>
+      <td class="muted small">${fmt(u.createdAt, false)}</td><td class="muted small">${fmt(u.lastLoginAt)}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <div class="page-title">리더·콜러 등록</div>
+    <div class="panel">
+      <h3>리더 <span class="muted small">고객 상세에서 담당 리더로 배정할 수 있어요 (1인당 ${LEADER_CAP}명 권장)</span></h3>
+      ${chipList('leader', '리더')}
+    </div>
+    <div class="panel">
+      <h3>콜러 <span class="muted small">배정된 고객만 보고 안내를 진행해요</span></h3>
+      ${chipList('caller', '콜러')}
+    </div>
+    <div class="panel">
+      <h3>관리자 <span class="muted small">${me.isSuper ? '전체 고객 조회·배정·등록 권한' : '관리자 지정은 최고 관리자만 할 수 있어요'}</span></h3>
+      ${chipList('admin', '관리자')}
+    </div>
+
+    <div class="page-title" style="margin-top:8px">가입자 목록 <span class="sub">관리자 페이지에 구글로 로그인한 사람들 — 체크해서 역할을 지정하세요</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>이름</th><th>이메일</th><th>역할</th><th>가입</th><th>최근 로그인</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <div class="muted small" style="margin-top:8px">새로 등록할 사람에게 이 페이지 주소를 알려주고 구글 로그인을 한 번 하게 하면 목록에 나타나요.</div>`;
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-role]');
+  if (!b || b.disabled) return;
+  if (b.tagName === 'INPUT') return; // 체크박스는 change에서 처리
+  await setRole(b.dataset.uid, b.dataset.role, b.dataset.on === '1');
+});
+document.addEventListener('change', async e => {
+  const b = e.target.closest('input[data-role]');
+  if (b) await setRole(b.dataset.uid, b.dataset.role, b.checked);
+});
+
+async function setRole(uid, role, on) {
+  const u = S.users.find(x => x.uid === uid);
+  const labels = {admin: '관리자', leader: '리더', caller: '콜러'};
+  if (!on && role !== 'admin') {
+    const k = role === 'leader' ? 'leaderUid' : 'callerUid';
+    const n = [...S.customers.values()].filter(c => c[k] === uid).length;
+    if (n && !confirm(`${u.name}님에게 배정된 고객 ${n}명이 있어요. ${labels[role]} 등록을 해제해도 배정은 그대로 남아요. 계속할까요?`)) { render(); return; }
+  }
+  const roles = {...(u.roles || {}), [role]: on};
+  try {
+    await updateDoc(doc(db, 'users', uid), {roles, rolesUpdatedAt: serverTimestamp()});
+    u.roles = roles;
+    toast(`${u.name}: ${labels[role]} ${on ? '등록' : '해제'}`);
+  } catch (err) {
+    toast('변경 실패: ' + (err.code || err.message));
+  }
+  render();
+}
+</script>
+</body>
+</html>

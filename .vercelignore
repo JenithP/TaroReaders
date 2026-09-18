@@ -1,0 +1,11 @@
+firebase.json
+firestore.rules
+apps_script.gs
+*.pdf
+*.md
+타로명리_사업캔버스.html
+.firebaserc
+major_*.png
+minor_*.png
+profile.png
+.claude/

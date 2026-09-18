@@ -16,7 +16,12 @@
  */
 
 const SHEET_ID = '1Nqnn553Yva4IiJgNQfJppg6b_5cPyTywYRl5D2XV_7I';
-const SHEET_NAME = '시트1'; // 시트 탭 이름이 다르면 여기 수정
+// 2026-09 개편: 리딩 코드·질문·주제·유입코드가 추가되어 열 구성이 바뀌었으므로
+// 기존 '시트1'과 섞이지 않게 새 탭에 기록한다. (탭이 없으면 자동 생성)
+const SHEET_NAME = '리딩v2';
+const HEADERS = ['접수시간', '리딩코드', '이름', '전화번호', '생년월일', '거주지역', '질문',
+                 '카드결과', '과거 리딩', '현재 리딩', '미래 리딩', '주제', '유입코드',
+                 '마케팅동의', '리딩일시'];
 
 function doPost(e) {
   try {
@@ -40,24 +45,30 @@ function doGet(e) {
 
 function writeToSheet(data) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_NAME) || ss.getActiveSheet();
+  const sheet = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
 
-  // 헤더가 없으면 첫 행에 추가
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['접수시간', '이름', '전화번호', '출생연도', '거주지역', '카드결과', '과거 리딩', '현재 리딩', '미래 리딩', '리딩일시']);
-    sheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#1a0933').setFontColor('#c9a84c');
+    sheet.appendRow(HEADERS);
+    sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold').setBackground('#1a0933').setFontColor('#c9a84c');
+    sheet.setFrozenRows(1);
   }
 
   sheet.appendRow([
     new Date().toLocaleString('ko-KR', {timeZone: 'Asia/Seoul'}),
+    data.code        || '',
     data.name        || '',
-    data.phone       || '',
+    // 앞자리 0이 숫자로 잘리지 않게 문자열로 저장
+    data.phone ? "'" + data.phone : '',
     data.birth       || '',
     data.region      || '',
+    data.question    || '',
     data.tarotResult || '',
     data.gptPast     || '',
     data.gptPresent  || '',
     data.gptFuture   || '',
+    data.themes      || '',
+    data.src         || '',
+    data.marketing   || '',
     data.readingDate || '',
   ]);
 }
