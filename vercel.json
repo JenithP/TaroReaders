@@ -1,3 +1,10 @@
 {
-  "version": 2
+  "version": 2,
+  "rewrites": [
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/data-deletion", "destination": "/data-deletion.html" }
+  ],
+  "crons": [
+    { "path": "/api/ig-refresh-token", "schedule": "0 18 * * 0" }
+  ]
 }
