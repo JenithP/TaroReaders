@@ -51,6 +51,7 @@ main{max-width:1180px;margin:0 auto;padding:20px}
 .btn:disabled{opacity:.45;cursor:default}
 .badge{display:inline-block;padding:1px 8px;border-radius:20px;font-size:.74rem;font-weight:500;white-space:nowrap}
 .b-stage{background:var(--brand-soft);color:var(--brand)}
+.b-kakao{background:#fee500;color:#191919}
 .b-before{background:var(--warn-soft);color:var(--warn)}
 .b-done{background:var(--ok-soft);color:var(--ok)}
 .b-bad{background:var(--bad-soft);color:var(--bad)}
@@ -131,6 +132,15 @@ textarea{width:100%;min-height:84px;padding:10px;border:1px solid var(--line);bo
 .role-toggle input{accent-color:var(--brand)}
 .staff-chip{display:inline-flex;align-items:center;gap:6px;background:var(--brand-soft);color:var(--brand);padding:4px 10px;border-radius:20px;margin:0 6px 6px 0;font-size:.84rem}
 .staff-chip button{border:none;background:none;color:var(--muted);font-size:.9rem;padding:0 2px}
+
+/* ── 인스타그램 ── */
+.inp{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.ig-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 12px}
+.ig-rule.off{opacity:.55}
+.ig-rule .head{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.ig-rule .head .inp{flex:1;min-width:140px;font-weight:600}
+.ig-preview{white-space:pre-wrap;background:#fbfaff;border:1px dashed var(--line);border-radius:8px;padding:10px 12px;font-size:.84rem;line-height:1.7;margin-top:6px;word-break:break-all}
+.hint{font-size:.76rem;color:var(--muted);margin-top:4px}
 
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#221a33;color:#fff;padding:10px 18px;border-radius:8px;font-size:.86rem;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
@@ -375,9 +385,11 @@ async function syncCustomers() {
     rs.sort((a, b) => t(a) - t(b));
     as.sort((a, b) => t(a) - t(b));
     const lr = rs[rs.length - 1], la = as[as.length - 1];
+    const kakao = rs.filter(r => r.kakaoAt).sort((a, b) => ms(a.kakaoAt) - ms(b.kakaoAt)).pop();
     const cur = S.customers.get(phone);
     if (cur && (cur.readingCount || 0) === rs.length && (cur.latestCode || '') === (lr ? lr.code : '')
-        && (cur.applicationCount || 0) === as.length && (cur.latestApplicationId || '') === (la ? la.id : '')) continue;
+        && (cur.applicationCount || 0) === as.length && (cur.latestApplicationId || '') === (la ? la.id : '')
+        && ms(cur.kakaoAt) === (kakao ? ms(kakao.kakaoAt) : 0)) continue;
     const all = [...rs, ...as].sort((a, b) => t(a) - t(b));
     const first = all[0], last = all[all.length - 1];
     const base = {
@@ -389,6 +401,8 @@ async function syncCustomers() {
       lastContactAt: last.contactAt || last.createdAt || null,
       readingCount: rs.length,
       applicationCount: as.length,
+      kakaoAt: kakao ? kakao.kakaoAt : null,
+      kakaoCode: kakao ? kakao.code : '',
     };
     if (lr) Object.assign(base, {
       region: lr.region || '',
@@ -477,7 +491,7 @@ async function saveCustomer(id, patch, msg = '저장했어요') {
 function tabs() {
   const me = S.me, t = [];
   t.push(['customers', me.isAdmin ? '고객' : me.isCaller && !me.isLeader ? '내 콜링' : me.isLeader && !me.isCaller ? '내 고객' : '내 담당']);
-  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '리더·콜러 등록']);
+  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '리더·콜러 등록'], ['instagram', '인스타그램']);
   return t;
 }
 
@@ -494,6 +508,7 @@ function render() {
   if (S.tab === 'dashboard') main.innerHTML = renderDashboard();
   if (S.tab === 'readings') main.innerHTML = renderReadings();
   if (S.tab === 'staff') main.innerHTML = renderStaff();
+  if (S.tab === 'instagram') main.innerHTML = renderInstagram();
   renderDrawer();
 }
 
@@ -505,7 +520,7 @@ document.addEventListener('click', e => {
 /* ── 고객 목록 ── */
 const FILTERS = [
   ['all', '전체'], ['before', '연락 전'], ['done', '연락함'],
-  ['no_answer', '부재'], ['confirmed', '확답'], ['seminar', '세미나 신청'],
+  ['no_answer', '부재'], ['confirmed', '확답'], ['kakao', '💬 카톡'], ['seminar', '세미나 신청'],
   ['no_caller', '콜러 미배정', 'admin'], ['no_leader', '리더 미배정', 'admin'],
 ];
 function filteredCustomers() {
@@ -517,6 +532,7 @@ function filteredCustomers() {
     if (f === 'no_answer' && c.callResult !== 'no_answer') return false;
     if (f === 'confirmed' && c.callResult !== 'confirmed') return false;
     if (f === 'seminar' && !(c.seminar && c.seminar.id)) return false;
+    if (f === 'kakao' && !c.kakaoAt) return false;
     if (f === 'no_caller' && c.callerUid) return false;
     if (f === 'no_leader' && c.leaderUid) return false;
     if (S.stageFilter !== '' && stageOf(c) !== +S.stageFilter) return false;
@@ -544,9 +560,12 @@ function resultBadge(c) {
 const codeCell = c => c.latestCode
   ? `${esc(c.latestCode)}${c.readingCount > 1 ? ` <span class="muted small">외 ${c.readingCount - 1}</span>` : ''}`
   : '<span class="muted small">리딩 없음</span>';
-const seminarCell = c => c.seminar && c.seminar.id
-  ? `<span class="badge ${c.attendedAt ? 'b-done' : 'b-muted'}">🗓 ${esc(seminarShort(c))}${c.attendedAt ? ' 참석' : ''}</span>`
-  : '<span class="muted">-</span>';
+const seminarBadge = c => c.seminar && c.seminar.id
+  ? `<span class="badge ${c.attendedAt ? 'b-done' : 'b-muted'}">🗓 ${esc(seminarShort(c))}${c.attendedAt ? ' 참석' : ''}</span>` : '';
+// 리딩 후 '코드 복사하고 카톡으로 보내기'를 누른 고객
+const kakaoBadge = c => c.kakaoAt
+  ? `<span class="badge b-kakao" title="${esc(fmt(c.kakaoAt))} 카톡 버튼 누름 · 코드 ${esc(c.kakaoCode || '')}">💬 카톡</span>` : '';
+const seminarCell = c => (kakaoBadge(c) + ' ' + seminarBadge(c)).trim() || '<span class="muted">-</span>';
 const stageBadge = c => `<span class="badge b-stage">${STAGES[stageOf(c)].k}</span>`;
 
 function renderCustomers() {
@@ -574,7 +593,7 @@ function renderCustomers() {
   const cards = list.map(c => `
     <div class="c-card" data-open="c:${esc(c.id)}">
       <div class="row1"><span class="name">${esc(c.name)}</span><span class="code">${codeCell(c)}</span></div>
-      <div class="row2">${stageBadge(c)} ${contactBadge(c)} ${resultBadge(c)} ${c.seminar && c.seminar.id ? seminarCell(c) : ''}
+      <div class="row2">${stageBadge(c)} ${contactBadge(c)} ${resultBadge(c)} ${kakaoBadge(c)} ${seminarBadge(c)}
         <span class="muted small">${esc(fmtPhone(c.phone))}</span></div>
       <div class="row2 small muted">콜러 ${esc(c.callerName || '-')} · 리더 ${esc(c.leaderName || '-')} · ${fmt(c.lastContactAt)}</div>
     </div>`).join('');
@@ -588,7 +607,7 @@ function renderCustomers() {
     <div class="toolbar chips">${chips}</div>
     ${list.length ? `
       <div class="table-wrap customers"><table>
-        <thead><tr><th>이름</th><th>전화번호</th><th>리딩 코드</th><th>세미나</th><th>단계</th><th>연락</th><th>콜러</th><th>담당 리더</th></tr></thead>
+        <thead><tr><th>이름</th><th>전화번호</th><th>리딩 코드</th><th>카톡·세미나</th><th>단계</th><th>연락</th><th>콜러</th><th>담당 리더</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
       <div class="cards">${cards}</div>`
     : `<div class="empty">${S.customers.size ? '조건에 맞는 고객이 없어요' : me.isAdmin ? '아직 연락처를 남긴 고객이 없어요' : '아직 배정된 고객이 없어요'}</div>`}`;
@@ -745,6 +764,7 @@ function customerDetail(c) {
           <dt>전화번호</dt><dd><a href="tel:${esc(c.phone)}"><b>${esc(fmtPhone(c.phone))}</b></a></dd>
           <dt>리딩 코드</dt><dd class="code">${(c.codes || []).map(esc).join(', ') || '<span class="muted">리딩 없음 (세미나로 바로 신청)</span>'}</dd>
           <dt>유입</dt><dd>${esc(c.src) || '<span class="muted">직접</span>'}</dd>
+          <dt>카톡</dt><dd>${c.kakaoAt ? `${kakaoBadge(c)} ${fmt(c.kakaoAt)} 코드 <span class="code">${esc(c.kakaoCode)}</span>로 카톡 연결` : '<span class="muted">카톡 버튼 안 누름</span>'}</dd>
           <dt>사는 곳</dt><dd>${esc(c.region) || '<span class="muted">-</span>'}</dd>
           <dt>소식 수신</dt><dd>${c.marketingConsent ? '동의' : '<span class="muted">미동의 — 모임 홍보 연락은 하지 않아요</span>'}</dd>
           <dt>접수</dt><dd>${fmt(c.firstContactAt)}${c.readingCount > 1 ? ` · 리딩 ${c.readingCount}회 (최근 ${fmt(c.lastContactAt)})` : ''}</dd>
@@ -1271,6 +1291,208 @@ async function setRole(uid, role, on) {
   }
   render();
 }
+
+/* ═══════════════════════════════════════
+   인스타그램 댓글 자동응답
+   ig_config/settings 에 저장 → 웹훅(api/ig-webhook)이 1분 안에 읽어 간다.
+   판별 로직(lib/ig/rules.js)은 서버와 같은 파일을 import 해서 "댓글 테스트"에 쓴다.
+═══════════════════════════════════════ */
+const IG = {lib: null, settings: null, log: [], loading: false, dirty: false, testPost: '', testText: ''};
+
+async function loadInstagram() {
+  if (IG.loading) return;
+  IG.loading = true;
+  try {
+    const [rules, config, snap, logs] = await Promise.all([
+      import('/lib/ig/rules.js'), import('/lib/ig/config.js'),
+      getDoc(doc(db, 'ig_config', 'settings')),
+      getDocs(query(collection(db, 'ig_comments'), orderBy('createdAt', 'desc'), limit(30))),
+    ]);
+    IG.lib = {...rules, ...config};
+    IG.settings = snap.exists() ? snap.data() : structuredClone(config.DEFAULT_SETTINGS);
+    IG.settings.rules = (IG.settings.rules || []).map(r => ({...r}));
+    IG.log = logs.docs.map(d => ({id: d.id, ...d.data()}));
+    IG.dirty = false;
+  } catch (e) {
+    toast('인스타그램 설정을 불러오지 못했어요: ' + (e.code || e.message));
+  }
+  IG.loading = false;
+  if (S.tab === 'instagram' && IG.settings) render();
+}
+
+const igId = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()).slice(0, 8);
+
+function renderInstagram() {
+  if (!IG.settings) { loadInstagram(); return '<div class="empty">불러오는 중…</div>'; }
+  const st = IG.settings;
+  const rules = st.rules.map((r, i) => `
+    <div class="panel ig-rule ${r.enabled === false ? 'off' : ''}" data-ig-rule="${i}">
+      <div class="head">
+        <label class="role-toggle"><input type="checkbox" data-ig="enabled" ${r.enabled !== false ? 'checked' : ''}> 켜기</label>
+        <input class="inp" data-ig="name" maxlength="30" placeholder="규칙 이름 (메모용)" value="${esc(r.name)}">
+        <span class="badge ${r.post ? 'b-stage' : 'b-muted'}">${r.post ? '특정 게시물' : '모든 게시물'}</span>
+        <button class="btn sm danger" data-ig-del="${i}">삭제</button>
+      </div>
+      <div class="ig-grid">
+        <div class="field"><label>반응할 키워드 (쉼표로 구분)</label>
+          <input class="inp" data-ig="keywords" placeholder="예: 루미, 타로, 상담  /  번호 게시물은 1번" value="${esc((r.keywords || []).join(', '))}">
+          <div class="hint">"1번"처럼 쓰면 1, 1️⃣, 첫번째 댓글도 잡아요</div></div>
+        <div class="field"><label>적용 게시물 (비우면 모든 게시물)</label>
+          <input class="inp" data-ig="post" placeholder="게시물 주소를 붙여넣기" value="${esc(r.post)}">
+          <div class="hint">특정 게시물 규칙이 모든 게시물 규칙보다 먼저 적용돼요</div></div>
+      </div>
+      <div class="field"><label>댓글에 달 답글 (한 줄에 하나 · 여러 줄이면 무작위로 하나)</label>
+        <textarea data-ig="replies" style="min-height:70px" placeholder="비우면 공개 답글 없이 DM만 보내요">${esc((r.replies || []).join('\n'))}</textarea></div>
+      <div class="field"><label>보낼 DM</label>
+        <textarea data-ig="dm" placeholder="이 키워드에 보낼 메시지 (예: 1번 카드 리딩)">${esc(r.dm)}</textarea>
+        <label class="role-toggle" style="margin-top:6px"><input type="checkbox" data-ig="appendPromo" ${r.appendPromo ? 'checked' : ''}> DM 끝에 공통 홍보 문구 붙이기</label>
+        <div class="hint" data-ig-len="${i}">${igLenLabel(r)}</div></div>
+    </div>`).join('');
+
+  const res = (x, label) => !x || x.skipped ? '' : x.ok
+    ? `<span class="badge b-done">${label}</span>`
+    : `<span class="badge b-bad">${label} 실패</span>`;
+  const logRows = IG.log.map(l => `<tr>
+      <td class="muted">${fmt(l.createdAt)}</td><td>${esc(l.username || l.fromId)}</td>
+      <td class="wrap">${esc(l.text)}</td><td>${esc(l.rule || '')} <span class="muted small">${esc(l.keyword || '')}</span></td>
+      <td>${l.status === 'processing' ? '<span class="badge b-before">처리 중</span>' : res(l.reply, '답글') + ' ' + res(l.dm, 'DM')}
+        ${[l.reply, l.dm].filter(x => x && x.error).map(x => `<div class="small" style="color:var(--bad)">${esc(x.error)}</div>`).join('')}</td>
+    </tr>`).join('');
+
+  return `
+    <div class="page-title">인스타그램 자동응답 <span class="sub">키워드가 담긴 댓글에 답글을 달고 DM 1통을 보내요 · 저장하면 1분 안에 적용</span></div>
+
+    <div class="panel">
+      <h3>댓글 테스트 <span class="muted small" style="font-weight:400">저장 전 내용으로 미리 확인</span></h3>
+      <div class="ig-grid">
+        <div class="field"><label>댓글</label><input class="inp" id="ig-test-text" placeholder="예: 2번이요!" value="${esc(IG.testText)}"></div>
+        <div class="field"><label>게시물 주소 (선택)</label><input class="inp" id="ig-test-post" placeholder="특정 게시물 규칙을 볼 때" value="${esc(IG.testPost)}"></div>
+      </div>
+      <div id="ig-test-out">${igTestResult()}</div>
+    </div>
+
+    <div class="panel">
+      <h3>공통 홍보 문구</h3>
+      <textarea id="ig-promo" style="min-height:220px">${esc(st.promo)}</textarea>
+      <div class="hint">{리딩링크} {세미나링크} 라고 쓰면 유입 추적 링크로 바뀌어요</div>
+    </div>
+
+    ${rules || '<div class="empty">규칙이 없어요. 아래에서 추가하세요.</div>'}
+
+    <div class="btn-row" style="justify-content:space-between;margin-bottom:24px">
+      <div class="btn-row">
+        <button class="btn" data-ig-add="keyword">+ 키워드 규칙</button>
+        <button class="btn" data-ig-add="pick">+ 번호 게시물 (1·2·3번)</button>
+      </div>
+      <div class="btn-row">
+        ${IG.dirty ? '<span class="small" style="color:var(--warn)">저장하지 않은 변경이 있어요</span>' : ''}
+        <button class="btn" data-ig-reload>되돌리기</button>
+        <button class="btn primary" data-ig-save>저장 (바로 적용)</button>
+      </div>
+    </div>
+
+    <div class="page-title">최근 처리 기록 <span class="sub">최신 30건 · 90일 뒤 자동 삭제</span></div>
+    ${logRows ? `<div class="table-wrap"><table><thead><tr><th>일시</th><th>계정</th><th>댓글</th><th>규칙</th><th>결과</th></tr></thead><tbody>${logRows}</tbody></table></div>`
+      : '<div class="empty">아직 처리한 댓글이 없어요</div>'}`;
+}
+
+function igLenLabel(r) {
+  const L = IG.lib, n = L.composeDm(r, IG.settings.promo).length;
+  if (!n) return '<b style="color:var(--bad)">DM 내용이 비어 있어요 — DM을 보내지 않아요</b>';
+  const raw = L.fillLinks(r.dm).trim().length + (r.appendPromo ? L.fillLinks(IG.settings.promo).trim().length + 16 : 0);
+  return `DM 길이 ${n} / ${L.DM_LIMIT}자` + (raw > L.DM_LIMIT ? ' <b style="color:var(--bad)">— 너무 길어서 DM 문구 끝이 잘려요</b>' : '');
+}
+
+function igTestResult() {
+  if (!IG.testText.trim()) return '<div class="hint">댓글을 입력하면 어떤 답글과 DM이 나가는지 보여드려요</div>';
+  const a = IG.lib.decide(IG.testText, IG.settings, IG.lib.toShortcode(IG.testPost) || null);
+  if (!a) return '<div class="notice">반응하지 않아요 (맞는 키워드가 없어요)</div>';
+  return `<div class="small"><b>${esc(a.rule.name || '이름 없는 규칙')}</b> · 키워드 "${esc(a.keyword)}"</div>
+    <div class="hint" style="margin-top:8px">공개 답글</div><div class="ig-preview">${esc(a.reply) || '(답글 없음)'}</div>
+    <div class="hint" style="margin-top:8px">DM (${a.dm.length}자)</div><div class="ig-preview">${esc(a.dm) || '(DM 없음)'}</div>`;
+}
+
+function igRefreshLive() {
+  document.querySelectorAll('[data-ig-len]').forEach(el => { el.innerHTML = igLenLabel(IG.settings.rules[+el.dataset.igLen]); });
+  const out = $('#ig-test-out'); if (out) out.innerHTML = igTestResult();
+}
+
+document.addEventListener('input', e => {
+  if (S.tab !== 'instagram' || !IG.settings) return;
+  const t = e.target;
+  if (t.id === 'ig-test-text') { IG.testText = t.value; igRefreshLive(); return; }
+  if (t.id === 'ig-test-post') { IG.testPost = t.value; igRefreshLive(); return; }
+  if (t.id === 'ig-promo') { IG.settings.promo = t.value; IG.dirty = true; igRefreshLive(); return; }
+  const box = t.closest('[data-ig-rule]'), f = t.dataset.ig;
+  if (!box || !f || t.type === 'checkbox') return;
+  const r = IG.settings.rules[+box.dataset.igRule];
+  if (f === 'keywords') r.keywords = t.value.split(/[,，\n]/).map(s => s.trim()).filter(Boolean);
+  else if (f === 'replies') r.replies = t.value.split('\n');
+  else r[f] = t.value;
+  IG.dirty = true;
+  igRefreshLive();
+});
+document.addEventListener('change', e => {
+  if (S.tab !== 'instagram' || !IG.settings) return;
+  const t = e.target, box = t.closest('[data-ig-rule]');
+  if (!box || t.type !== 'checkbox') return;
+  IG.settings.rules[+box.dataset.igRule][t.dataset.ig] = t.checked;
+  IG.dirty = true;
+  if (t.dataset.ig === 'enabled') box.classList.toggle('off', !t.checked);
+  igRefreshLive();
+});
+document.addEventListener('click', async e => {
+  if (S.tab !== 'instagram' || !IG.settings) return;
+  const add = e.target.closest('[data-ig-add]');
+  if (add) {
+    if (add.dataset.igAdd === 'keyword') {
+      IG.settings.rules.push({id: igId(), name: '새 규칙', enabled: true, post: '', keywords: [],
+        replies: ['🌙 별빛이 닿았어요. DM을 살짝 열어보세요 ✨'], dm: '', appendPromo: true});
+    } else {
+      const post = prompt('번호를 고르게 할 게시물 주소를 붙여넣어 주세요\n(예: https://www.instagram.com/p/ABC123/)');
+      if (post === null) return;
+      const name = prompt('이 게시물을 부를 이름 (예: 10월 연애운 픽카드)', '픽카드') || '픽카드';
+      for (const n of [1, 2, 3]) IG.settings.rules.push({
+        id: igId(), name: `${name} ${n}번`, enabled: true, post: IG.lib.toShortcode(post), keywords: [`${n}번`],
+        replies: [`🔮 ${n}번 카드의 이야기를 DM으로 보내드렸어요 ✨`, `🌙 ${n}번을 고른 당신에게, 카드의 속삭임을 DM으로 전했어요 💌`],
+        dm: `🔮 ${n}번 카드를 고른 당신에게\n\n(여기에 ${n}번 리딩을 적어주세요)`, appendPromo: true,
+      });
+    }
+    IG.dirty = true; render();
+    return;
+  }
+  const del = e.target.closest('[data-ig-del]');
+  if (del) {
+    const r = IG.settings.rules[+del.dataset.igDel];
+    if (!confirm(`"${r.name || '이름 없는 규칙'}" 규칙을 삭제할까요? (저장해야 반영돼요)`)) return;
+    IG.settings.rules.splice(+del.dataset.igDel, 1);
+    IG.dirty = true; render();
+    return;
+  }
+  if (e.target.closest('[data-ig-reload]')) {
+    if (IG.dirty && !confirm('저장하지 않은 변경을 버리고 저장된 내용으로 되돌릴까요?')) return;
+    IG.settings = null; render();
+    return;
+  }
+  if (e.target.closest('[data-ig-save]')) {
+    const rules = IG.settings.rules.map(r => ({
+      id: r.id || igId(), name: String(r.name || '').trim(), enabled: r.enabled !== false,
+      post: IG.lib.toShortcode(r.post), keywords: (r.keywords || []).map(s => s.trim()).filter(Boolean),
+      replies: (r.replies || []).map(s => s.trim()).filter(Boolean), dm: String(r.dm || ''), appendPromo: !!r.appendPromo,
+    }));
+    const empty = rules.filter(r => r.enabled && !r.keywords.length);
+    if (empty.length && !confirm(`키워드가 없는 규칙 ${empty.length}개는 반응하지 않아요. 그래도 저장할까요?`)) return;
+    try {
+      await setDoc(doc(db, 'ig_config', 'settings'), {
+        promo: IG.settings.promo, rules, updatedAt: serverTimestamp(), updatedBy: S.me.email,
+      });
+      IG.settings.rules = rules; IG.dirty = false;
+      toast('저장했어요. 1분 안에 댓글 자동응답에 적용돼요');
+      render();
+    } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }
+  }
+});
+window.addEventListener('beforeunload', e => { if (IG.dirty) { e.preventDefault(); e.returnValue = ''; } });
 </script>
 </body>
 </html>

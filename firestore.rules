@@ -50,13 +50,17 @@ service cloud.firestore {
         && request.resource.data.src is string && request.resource.data.src.size() <= 30;
 
       // 연락처는 문서당 한 번만 붙일 수 있다
-      allow update: if !('phone' in resource.data)
+      allow update: if (!('phone' in resource.data)
         && changed().hasOnly(['phone', 'region', 'marketingConsent', 'contactAt'])
         && request.resource.data.phone is string
         && request.resource.data.phone.matches('^01[0-9]{8,9}$')
         && request.resource.data.region is string && request.resource.data.region.size() <= 20
         && request.resource.data.marketingConsent is bool
-        && request.resource.data.contactAt == request.time;
+        && request.resource.data.contactAt == request.time)
+        // 연락처를 남긴 뒤 카톡 버튼을 누른 시각도 한 번만
+        || (('phone' in resource.data) && !('kakaoAt' in resource.data)
+        && changed().hasOnly(['kakaoAt'])
+        && request.resource.data.kakaoAt == request.time);
 
       allow read, delete: if isAdmin();
     }
@@ -131,6 +135,15 @@ service cloud.firestore {
             && resource.data.get('leaderUid', '') == request.auth.uid
             && changed().hasOnly(['contactStatus', 'memo', 'attendedAt', 'groupSecondAt',
                                   'counselorMatchedAt', 'referralAt', 'updatedAt', 'updatedBy']));
+    }
+
+    // ── 인스타그램 자동응답 (쓰기는 서버 Admin SDK, 관리자 페이지는 아래만) ──
+    // ig_config/token (액세스 토큰)은 여기 없으므로 브라우저에서 절대 읽을 수 없다
+    match /ig_config/settings {
+      allow read, write: if isAdmin();
+    }
+    match /ig_comments/{id} {
+      allow read: if isAdmin();
     }
   }
 }

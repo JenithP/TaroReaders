@@ -2,10 +2,10 @@
 // 환경변수: IG_APP_SECRET, IG_VERIFY_TOKEN, IG_ACCESS_TOKEN(초기값), FIREBASE_SERVICE_ACCOUNT
 import crypto from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
-import { IG_USER_ID, POST_RULES } from '../lib/ig/config.js';
-import { decide } from '../lib/ig/rules.js';
+import { IG_USER_ID } from '../lib/ig/config.js';
+import { decide, needsShortcode } from '../lib/ig/rules.js';
 import { replyToComment, sendPrivateReply, getShortcode } from '../lib/ig/graph.js';
-import { getAccessToken, commentRef, FieldValue } from '../lib/ig/store.js';
+import { getAccessToken, getSettings, commentRef, FieldValue } from '../lib/ig/store.js';
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
@@ -67,14 +67,14 @@ async function handleComment(v, entryTime) {
     if (Date.now() - ms > SEVEN_DAYS) return;
   }
 
-  const token = await getAccessToken();
+  const [token, settings] = await Promise.all([getAccessToken(), getSettings()]);
 
   let shortcode = null;
-  if (mediaId && Object.keys(POST_RULES).length) {
+  if (mediaId && needsShortcode(settings)) {
     try { shortcode = await getShortcode(token, mediaId); }
     catch (e) { console.warn('[ig] shortcode lookup failed:', mediaId, e.message); }
   }
-  const action = decide(v.text, shortcode ? POST_RULES[shortcode] : undefined);
+  const action = decide(v.text, settings, shortcode);
   if (!action) return; // 키워드 없는 댓글은 기록도 남기지 않는다
 
   // 같은 댓글 중복 처리 방지: 문서를 먼저 만든 쪽만 진행
@@ -86,8 +86,8 @@ async function handleComment(v, entryTime) {
       fromId,
       username: v.from?.username || null,
       text: String(v.text || '').slice(0, 500),
-      kind: action.kind,
-      pick: action.pick ?? null,
+      rule: action.rule.name || action.rule.id || '',
+      keyword: action.keyword,
       status: 'processing',
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -96,13 +96,14 @@ async function handleComment(v, entryTime) {
     throw e;
   }
 
+  const skipped = { ok: true, skipped: true };
   const [reply, dm] = await Promise.all([
-    run(() => replyToComment(token, commentId, action.reply)),
-    run(() => sendPrivateReply(token, commentId, action.dm)),
+    action.reply ? run(() => replyToComment(token, commentId, action.reply)) : skipped,
+    action.dm ? run(() => sendPrivateReply(token, commentId, action.dm)) : skipped,
   ]);
   const status = reply.ok && dm.ok ? 'done' : reply.ok || dm.ok ? 'partial' : 'failed';
   await ref.update({ status, reply, dm, updatedAt: FieldValue.serverTimestamp() });
-  console.log('[ig]', commentId, action.kind, status, reply.error || '', dm.error || '');
+  console.log('[ig]', commentId, action.keyword, status, reply.error || '', dm.error || '');
 }
 
 async function run(fn) {

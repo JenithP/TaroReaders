@@ -695,6 +695,10 @@ window.fbReady = FIREBASE_CONFIG ? (async () => {
       async addContact(id, contact) {
         await updateDoc(doc(db, 'readings', id), { ...contact, contactAt: serverTimestamp() });
       },
+      // 카톡 버튼을 누른 시각 (연락처를 남긴 뒤 한 번만) → 관리자 고객 목록에 '카톡'으로 표시
+      async markKakao(id) {
+        await updateDoc(doc(db, 'readings', id), { kakaoAt: serverTimestamp() });
+      },
     };
   } catch (e) {
     console.warn('Firebase 초기화 실패:', e.message);
@@ -1561,7 +1565,12 @@ function showSuccess() {
   document.getElementById('success-msg').style.display = 'block';
 }
 
+let kakaoMarked = false;
 function copyCode() {
+  if (!kakaoMarked && readingDocId && window.fbReady) {
+    kakaoMarked = true;
+    window.fbReady.then(fb => fb && fb.markKakao(readingDocId)).catch(e => console.warn('카톡 기록 실패:', e.message));
+  }
   const toast = document.getElementById('copy-toast');
   const done = () => { toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2500); };
   try {
@@ -1604,6 +1613,7 @@ function restart() {
     readingCode = '';
     readingDocId = null;
     readingSavePromise = null;
+    kakaoMarked = false;
     themes = null;
     openThemeText = '';
     ['user-name-input','user-birth-input','user-question-input','f-phone','f-region'].forEach(id => {
