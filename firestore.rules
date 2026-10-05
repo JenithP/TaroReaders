@@ -134,7 +134,8 @@ service cloud.firestore {
         || (hasRole('leader')
             && resource.data.get('leaderUid', '') == request.auth.uid
             && changed().hasOnly(['contactStatus', 'memo', 'attendedAt', 'groupSecondAt',
-                                  'counselorMatchedAt', 'referralAt', 'updatedAt', 'updatedBy']));
+                                  'counselorMatchedAt', 'referralAt',
+                                  'center', 'guide', 'teacher', 'server', 'updatedAt', 'updatedBy']));
     }
 
     // ── 인스타그램 자동응답 (쓰기는 서버 Admin SDK, 관리자 페이지는 아래만) ──

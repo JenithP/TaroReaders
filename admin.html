@@ -100,6 +100,8 @@ td.wrap{white-space:normal;min-width:180px}
 .field{margin-bottom:12px}
 .field label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px}
 .field select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.field input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 textarea{width:100%;min-height:84px;padding:10px;border:1px solid var(--line);border-radius:8px;resize:vertical}
 .check{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)}
 .check:last-child{border-bottom:none}
@@ -232,6 +234,7 @@ const S = {
   tab: 'customers',
   filter: 'all',
   stageFilter: '',
+  centerFilter: '',
   search: '',
   openId: null,        // 열린 상세: 'c:전화번호' | 'r:리딩ID'
 };
@@ -536,8 +539,10 @@ function filteredCustomers() {
     if (f === 'no_caller' && c.callerUid) return false;
     if (f === 'no_leader' && c.leaderUid) return false;
     if (S.stageFilter !== '' && stageOf(c) !== +S.stageFilter) return false;
+    if (S.centerFilter === '-' ? c.center : S.centerFilter && c.center !== S.centerFilter) return false;
     if (q) {
-      const hay = [c.name, c.phone, ...(c.codes || []), c.src, c.leaderName, c.callerName].join(' ').toLowerCase().replace(/-/g, '');
+      const hay = [c.name, c.phone, ...(c.codes || []), c.src, c.leaderName, c.callerName,
+        c.center, c.guide, c.teacher, c.server].join(' ').toLowerCase().replace(/-/g, '');
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -567,6 +572,10 @@ const kakaoBadge = c => c.kakaoAt
   ? `<span class="badge b-kakao" title="${esc(fmt(c.kakaoAt))} 카톡 버튼 누름 · 코드 ${esc(c.kakaoCode || '')}">💬 카톡</span>` : '';
 const seminarCell = c => (kakaoBadge(c) + ' ' + seminarBadge(c)).trim() || '<span class="muted">-</span>';
 const stageBadge = c => `<span class="badge b-stage">${STAGES[stageOf(c)].k}</span>`;
+// 센터·인도자·교사·섬김이 (관리자와 담당 리더가 직접 입력)
+const PEOPLE = [['center', '센터'], ['guide', '인도자'], ['teacher', '교사'], ['server', '섬김이']];
+const textCell = v => esc(v || '') || '<span class="muted">-</span>';
+const centerList = () => [...new Set([...S.customers.values()].map(c => c.center).filter(Boolean))].sort();
 
 function renderCustomers() {
   const me = S.me;
@@ -578,6 +587,8 @@ function renderCustomers() {
   const chips = FILTERS.filter(f => !f[2] || me.isAdmin)
     .map(([k, l]) => `<button class="chip ${S.filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('');
   const stageOpts = `<option value="">전체 단계</option>` + STAGES.map((s, i) => `<option value="${i}" ${S.stageFilter === String(i) ? 'selected' : ''}>${s.k} ${s.name}</option>`).join('');
+  const centerOpts = `<option value="">전체 센터</option><option value="-" ${S.centerFilter === '-' ? 'selected' : ''}>센터 미정</option>`
+    + centerList().map(n => `<option value="${esc(n)}" ${S.centerFilter === n ? 'selected' : ''}>${esc(n)}</option>`).join('');
 
   const rows = list.map(c => `
     <tr data-open="c:${esc(c.id)}">
@@ -589,6 +600,7 @@ function renderCustomers() {
       <td>${contactBadge(c)} ${resultBadge(c)}</td>
       <td>${esc(c.callerName || '') || '<span class="muted">-</span>'}</td>
       <td>${esc(c.leaderName || '') || '<span class="muted">-</span>'}</td>
+      ${PEOPLE.map(([k]) => `<td>${textCell(c[k])}</td>`).join('')}
     </tr>`).join('');
   const cards = list.map(c => `
     <div class="c-card" data-open="c:${esc(c.id)}">
@@ -596,6 +608,7 @@ function renderCustomers() {
       <div class="row2">${stageBadge(c)} ${contactBadge(c)} ${resultBadge(c)} ${kakaoBadge(c)} ${seminarBadge(c)}
         <span class="muted small">${esc(fmtPhone(c.phone))}</span></div>
       <div class="row2 small muted">콜러 ${esc(c.callerName || '-')} · 리더 ${esc(c.leaderName || '-')} · ${fmt(c.lastContactAt)}</div>
+      ${PEOPLE.some(([k]) => c[k]) ? `<div class="row2 small muted">${PEOPLE.map(([k, l]) => `${l} ${esc(c[k] || '-')}`).join(' · ')}</div>` : ''}
     </div>`).join('');
 
   return `
@@ -603,11 +616,12 @@ function renderCustomers() {
     <div class="toolbar">
       <input type="search" id="search" placeholder="이름·전화번호·리딩 코드 검색" value="${esc(S.search)}">
       <select id="stage-filter">${stageOpts}</select>
+      <select id="center-filter">${centerOpts}</select>
     </div>
     <div class="toolbar chips">${chips}</div>
     ${list.length ? `
       <div class="table-wrap customers"><table>
-        <thead><tr><th>이름</th><th>전화번호</th><th>리딩 코드</th><th>카톡·세미나</th><th>단계</th><th>연락</th><th>콜러</th><th>담당 리더</th></tr></thead>
+        <thead><tr><th>이름</th><th>전화번호</th><th>리딩 코드</th><th>카톡·세미나</th><th>단계</th><th>연락</th><th>콜러</th><th>담당 리더</th>${PEOPLE.map(([, l]) => `<th>${l}</th>`).join('')}</tr></thead>
         <tbody>${rows}</tbody></table></div>
       <div class="cards">${cards}</div>`
     : `<div class="empty">${S.customers.size ? '조건에 맞는 고객이 없어요' : me.isAdmin ? '아직 연락처를 남긴 고객이 없어요' : '아직 배정된 고객이 없어요'}</div>`}`;
@@ -623,6 +637,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   if (e.target.id === 'stage-filter') { S.stageFilter = e.target.value; render(); }
+  if (e.target.id === 'center-filter') { S.centerFilter = e.target.value; render(); }
 });
 document.addEventListener('click', e => {
   const f = e.target.closest('[data-filter]');
@@ -774,6 +789,15 @@ function customerDetail(c) {
 
       ${seminarPanel(c)}
       <div class="panel"><h3>배정</h3>${assign}</div>
+      <div class="panel"><h3>센터·인도</h3>
+        <datalist id="center-list">${centerList().map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+        <div class="grid2">${PEOPLE.map(([k, l]) => `
+          <div class="field"><label>${l}</label>
+            <input type="text" data-person="${k}" maxlength="30" value="${esc(c[k] || '')}" ${k === 'center' ? 'list="center-list" placeholder="예: 강남센터"' : ''} ${canLead ? '' : 'disabled'}></div>`).join('')}
+        </div>
+        ${canLead ? `<div class="btn-row" style="justify-content:flex-end">
+          <button class="btn sm primary" data-save-people="${id}">저장</button></div>` : ''}
+      </div>
       <div class="panel"><h3>콜링</h3>${calling}</div>
 
       <div class="panel">
@@ -903,6 +927,18 @@ document.addEventListener('click', async e => {
     const memo = $('#memo').value.slice(0, 500);
     $('#memo').dataset.dirty = '0';
     await saveCustomer(sm.dataset.saveMemo, {memo}, '메모를 저장했어요');
+    return;
+  }
+  const sp = e.target.closest('[data-save-people]');
+  if (sp) {
+    const c = S.customers.get(sp.dataset.savePeople);
+    const patch = {};
+    document.querySelectorAll('[data-person]').forEach(i => {
+      const v = i.value.trim().slice(0, 30);
+      if (v !== (c[i.dataset.person] || '')) patch[i.dataset.person] = v || deleteField();
+    });
+    if (!Object.keys(patch).length) { toast('바뀐 내용이 없어요'); return; }
+    await saveCustomer(c.id, patch, '센터·인도 정보를 저장했어요');
     return;
   }
   const dc = e.target.closest('[data-delete-customer]');
