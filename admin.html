@@ -110,6 +110,9 @@ textarea{width:100%;min-height:84px;padding:10px;border:1px solid var(--line);bo
 .notice{background:var(--warn-soft);color:var(--warn);padding:8px 12px;border-radius:8px;font-size:.82rem;margin-top:8px}
 .cards-mini{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
 .cards-mini span{background:var(--brand-soft);color:var(--brand);padding:3px 10px;border-radius:6px;font-size:.8rem}
+.past-reading{margin-bottom:10px}
+.past-reading summary{cursor:pointer;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.past-reading[open] summary{margin-bottom:8px}
 .reading-text{font-size:.86rem;line-height:1.8;margin-bottom:10px}
 .reading-text b{color:var(--brand)}
 .theme{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:.84rem}
@@ -373,6 +376,12 @@ async function loadAll() {
   }
 }
 
+const readingSummary = r => ({
+  code: r.code, createdAt: r.createdAt || null, question: r.question || '',
+  birth: r.birth || '', cards: r.cards || [], readings: r.readings || null,
+  themes: r.themes || [], openTheme: r.openTheme || '',
+});
+
 // 연락처가 있는 리딩과 세미나 신청을 전화번호 기준 고객 1명으로 묶는다 (관리자만)
 async function syncCustomers() {
   const byPhone = new Map();
@@ -392,7 +401,8 @@ async function syncCustomers() {
     const cur = S.customers.get(phone);
     if (cur && (cur.readingCount || 0) === rs.length && (cur.latestCode || '') === (lr ? lr.code : '')
         && (cur.applicationCount || 0) === as.length && (cur.latestApplicationId || '') === (la ? la.id : '')
-        && ms(cur.kakaoAt) === (kakao ? ms(kakao.kakaoAt) : 0)) continue;
+        && ms(cur.kakaoAt) === (kakao ? ms(kakao.kakaoAt) : 0)
+        && (cur.history || []).length === rs.length) continue;
     const all = [...rs, ...as].sort((a, b) => t(a) - t(b));
     const first = all[0], last = all[all.length - 1];
     const base = {
@@ -411,11 +421,9 @@ async function syncCustomers() {
       region: lr.region || '',
       codes: rs.map(r => r.code),
       latestCode: lr.code,
-      latest: {
-        code: lr.code, createdAt: lr.createdAt || null, question: lr.question || '',
-        birth: lr.birth || '', cards: lr.cards || [], readings: lr.readings || null,
-        themes: lr.themes || [], openTheme: lr.openTheme || '',
-      },
+      latest: readingSummary(lr),
+      // 상담 때 지난 리딩도 볼 수 있게 전부 (최신순). 리더·콜러는 readings 를 못 읽으므로 여기 담는다
+      history: rs.map(readingSummary).reverse(),
     });
     // 새 신청이 들어왔을 때만 세미나 정보를 덮어쓴다 (관리자가 옮긴 일정은 유지)
     if (la && (!cur || cur.latestApplicationId !== la.id)) Object.assign(base, {
@@ -677,6 +685,19 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.openId) { S.openId = null; renderDrawer(); } });
 
+// 리딩이 여러 개면 최근 것은 펼치고 지난 것은 접어 둔다 (검색한 코드는 펼침)
+function readingHistory(c) {
+  const list = c.history && c.history.length ? c.history : (c.latest ? [c.latest] : []);
+  if (list.length <= 1) return readingBlock(list[0]);
+  const q = S.search.trim().toUpperCase();
+  return readingBlock(list[0], `최근 리딩 (전체 ${list.length}회)`) + list.slice(1).map(r => `
+    <details class="past-reading" ${q && String(r.code).toUpperCase().includes(q) ? 'open' : ''}>
+      <summary><span class="code">${esc(r.code)}</span> <span class="muted small">${fmt(r.createdAt)}</span>
+        <span class="small">${esc(r.question) || '<span class="muted">(질문 없음)</span>'}</span></summary>
+      ${readingBlock(r, '지난 리딩')}
+    </details>`).join('');
+}
+
 function readingBlock(r, title = '리딩') {
   if (!r) return '';
   const cards = (r.cards || []).map(c => `<span>${esc(c.pos)} · ${esc(c.name)}${c.reversed ? ' (역)' : ''}</span>`).join('');
@@ -812,7 +833,7 @@ function customerDetail(c) {
         <div style="margin-top:10px" class="small"><span class="muted">실적 점수</span> ${scoreHtml}</div>
       </div>
 
-      ${readingBlock(c.latest, c.readingCount > 1 ? '최근 리딩' : '리딩')}
+      ${readingHistory(c)}
 
       ${me.isAdmin ? `<div class="btn-row" style="justify-content:flex-end">
         <button class="btn sm danger" data-delete-customer="${id}">고객 정보 삭제 (파기 요청 시)</button></div>` : ''}
