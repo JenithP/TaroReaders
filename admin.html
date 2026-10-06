@@ -1345,7 +1345,7 @@ async function loadInstagram() {
       getDocs(query(collection(db, 'ig_comments'), orderBy('createdAt', 'desc'), limit(30))),
     ]);
     IG.lib = {...rules, ...config};
-    IG.settings = snap.exists() ? snap.data() : structuredClone(config.DEFAULT_SETTINGS);
+    IG.settings = {...structuredClone(config.DEFAULT_SETTINGS), ...(snap.exists() ? snap.data() : {})};
     IG.settings.rules = (IG.settings.rules || []).map(r => ({...r}));
     IG.log = logs.docs.map(d => ({id: d.id, ...d.data()}));
     IG.dirty = false;
@@ -1391,8 +1391,10 @@ function renderInstagram() {
   const logRows = IG.log.map(l => `<tr>
       <td class="muted">${fmt(l.createdAt)}</td><td>${esc(l.username || l.fromId)}</td>
       <td class="wrap">${esc(l.text)}</td><td>${esc(l.rule || '')} <span class="muted small">${esc(l.keyword || '')}</span></td>
-      <td>${l.status === 'processing' ? '<span class="badge b-before">처리 중</span>' : res(l.reply, '답글') + ' ' + res(l.dm, 'DM')}
-        ${[l.reply, l.dm].filter(x => x && x.error).map(x => `<div class="small" style="color:var(--bad)">${esc(x.error)}</div>`).join('')}</td>
+      <td>${l.status === 'processing' ? '<span class="badge b-before">처리 중</span>' : res(l.reply, '답글') + ' ' + res(l.dm, l.gate ? '안내 DM' : 'DM')}
+        ${l.status === 'waiting' ? `<span class="badge b-before">팔로우 대기${l.notFollowingCount ? ` · 미팔로우 ${l.notFollowingCount}회` : ''}</span>` : ''}
+        ${l.delivered ? res(l.delivered, '리딩 전달') : ''}
+        ${[l.reply, l.dm, l.delivered].filter(x => x && x.error).map(x => `<div class="small" style="color:var(--bad)">${esc(x.error)}</div>`).join('')}</td>
     </tr>`).join('');
 
   return `
@@ -1410,7 +1412,22 @@ function renderInstagram() {
     <div class="panel">
       <h3>공통 홍보 문구</h3>
       <textarea id="ig-promo" style="min-height:220px">${esc(st.promo)}</textarea>
-      <div class="hint">{리딩링크} {세미나링크} 라고 쓰면 유입 추적 링크로 바뀌어요</div>
+      <div class="hint">{리딩링크} {세미나링크} 가 든 줄은 팔로우 확인을 켜면 빠지고 아래 버튼으로 대신 가요. 끄면 짧은 주소로 바뀌어요</div>
+    </div>
+
+    <div class="panel">
+      <h3>팔로우 확인 · 링크 버튼</h3>
+      <label class="role-toggle"><input type="checkbox" data-ig-set="followGate" ${st.followGate !== false ? 'checked' : ''}> 팔로우한 사람에게만 리딩 보내기</label>
+      <div class="hint" style="margin-bottom:10px">켜면: 댓글 → 아래 "첫 DM" → 고객이 '팔로우했어요'를 누르거나 답장 → 팔로우 확인 → 리딩 + 링크 버튼. 인스타그램 정책상 고객이 한 번 답장해야 팔로우를 확인할 수 있어요.</div>
+      <div class="ig-grid">
+        <div class="field"><label>첫 DM (팔로우 안내)</label><textarea data-ig-set="gateText" style="min-height:120px">${esc(st.gateText)}</textarea></div>
+        <div class="field"><label>팔로우가 안 되어 있을 때</label><textarea data-ig-set="notFollowingText" style="min-height:120px">${esc(st.notFollowingText)}</textarea></div>
+      </div>
+      <div class="ig-grid">
+        <div class="field"><label>버튼 위 안내 문구</label><input class="inp" data-ig-set="buttonText" maxlength="100" value="${esc(st.buttonText)}"></div>
+        <div class="field"><label>리딩 버튼 글자 (20자, 비우면 버튼 없음)</label><input class="inp" data-ig-set="readingButton" maxlength="20" value="${esc(st.readingButton)}"></div>
+        <div class="field"><label>세미나 버튼 글자 (20자, 비우면 버튼 없음)</label><input class="inp" data-ig-set="seminarButton" maxlength="20" value="${esc(st.seminarButton)}"></div>
+      </div>
     </div>
 
     ${rules || '<div class="empty">규칙이 없어요. 아래에서 추가하세요.</div>'}
@@ -1433,9 +1450,9 @@ function renderInstagram() {
 }
 
 function igLenLabel(r) {
-  const L = IG.lib, n = L.composeDm(r, IG.settings.promo).length;
+  const L = IG.lib, gate = IG.settings.followGate !== false, n = L.composeDm(r, IG.settings.promo, gate).length;
   if (!n) return '<b style="color:var(--bad)">DM 내용이 비어 있어요 — DM을 보내지 않아요</b>';
-  const raw = L.fillLinks(r.dm).trim().length + (r.appendPromo ? L.fillLinks(IG.settings.promo).trim().length + 16 : 0);
+  const raw = (gate ? r.dm.length : L.fillLinks(r.dm).trim().length) + (r.appendPromo ? (gate ? IG.settings.promo.length : L.fillLinks(IG.settings.promo).trim().length) + 16 : 0);
   return `DM 길이 ${n} / ${L.DM_LIMIT}자` + (raw > L.DM_LIMIT ? ' <b style="color:var(--bad)">— 너무 길어서 DM 문구 끝이 잘려요</b>' : '');
 }
 
@@ -1443,9 +1460,15 @@ function igTestResult() {
   if (!IG.testText.trim()) return '<div class="hint">댓글을 입력하면 어떤 답글과 DM이 나가는지 보여드려요</div>';
   const a = IG.lib.decide(IG.testText, IG.settings, IG.lib.toShortcode(IG.testPost) || null);
   if (!a) return '<div class="notice">반응하지 않아요 (맞는 키워드가 없어요)</div>';
-  return `<div class="small"><b>${esc(a.rule.name || '이름 없는 규칙')}</b> · 키워드 "${esc(a.keyword)}"</div>
-    <div class="hint" style="margin-top:8px">공개 답글</div><div class="ig-preview">${esc(a.reply) || '(답글 없음)'}</div>
-    <div class="hint" style="margin-top:8px">DM (${a.dm.length}자)</div><div class="ig-preview">${esc(a.dm) || '(DM 없음)'}</div>`;
+  const st = IG.settings, head = `<div class="small"><b>${esc(a.rule.name || '이름 없는 규칙')}</b> · 키워드 "${esc(a.keyword)}"</div>
+    <div class="hint" style="margin-top:8px">공개 답글</div><div class="ig-preview">${esc(a.reply) || '(답글 없음)'}</div>`;
+  if (st.followGate === false) return head + `<div class="hint" style="margin-top:8px">DM (${a.dm.length}자)</div><div class="ig-preview">${esc(a.dm) || '(DM 없음)'}</div>`;
+  const btns = a.buttons.map(b => `<span class="badge b-stage" style="margin:6px 6px 0 0">${esc(b.title)}</span>`).join('');
+  return head + `
+    <div class="hint" style="margin-top:8px">① 댓글 직후 DM <span class="badge b-muted">${esc(IG.lib.FOLLOW_BUTTON)}</span> 버튼과 함께</div><div class="ig-preview">${esc(st.gateText)}</div>
+    <div class="hint" style="margin-top:8px">② 팔로우가 확인되면 (${a.content.length}자)</div><div class="ig-preview">${esc(a.content) || '(본문 없음)'}</div>
+    ${btns ? `<div class="ig-preview">${esc(st.buttonText)}<div>${btns}</div></div>` : ''}
+    <div class="hint" style="margin-top:8px">②' 아직 팔로우하지 않았으면</div><div class="ig-preview">${esc(st.notFollowingText)}</div>`;
 }
 
 function igRefreshLive() {
@@ -1459,6 +1482,7 @@ document.addEventListener('input', e => {
   if (t.id === 'ig-test-text') { IG.testText = t.value; igRefreshLive(); return; }
   if (t.id === 'ig-test-post') { IG.testPost = t.value; igRefreshLive(); return; }
   if (t.id === 'ig-promo') { IG.settings.promo = t.value; IG.dirty = true; igRefreshLive(); return; }
+  if (t.dataset.igSet && t.type !== 'checkbox') { IG.settings[t.dataset.igSet] = t.value; IG.dirty = true; igRefreshLive(); return; }
   const box = t.closest('[data-ig-rule]'), f = t.dataset.ig;
   if (!box || !f || t.type === 'checkbox') return;
   const r = IG.settings.rules[+box.dataset.igRule];
@@ -1471,6 +1495,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   if (S.tab !== 'instagram' || !IG.settings) return;
   const t = e.target, box = t.closest('[data-ig-rule]');
+  if (t.dataset.igSet && t.type === 'checkbox') { IG.settings[t.dataset.igSet] = t.checked; IG.dirty = true; igRefreshLive(); return; }
   if (!box || t.type !== 'checkbox') return;
   IG.settings.rules[+box.dataset.igRule][t.dataset.ig] = t.checked;
   IG.dirty = true;
@@ -1521,6 +1546,9 @@ document.addEventListener('click', async e => {
     try {
       await setDoc(doc(db, 'ig_config', 'settings'), {
         promo: IG.settings.promo, rules, updatedAt: serverTimestamp(), updatedBy: S.me.email,
+        followGate: IG.settings.followGate !== false,
+        ...Object.fromEntries(['gateText', 'notFollowingText', 'buttonText', 'readingButton', 'seminarButton']
+          .map(k => [k, String(IG.settings[k] ?? '')])),
       });
       IG.settings.rules = rules; IG.dirty = false;
       toast('저장했어요. 1분 안에 댓글 자동응답에 적용돼요');

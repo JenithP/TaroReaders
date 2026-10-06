@@ -1,10 +1,31 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/data-deletion", "destination": "/data-deletion.html" }
+    {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/data-deletion",
+      "destination": "/data-deletion.html"
+    }
   ],
   "crons": [
-    { "path": "/api/ig-refresh-token", "schedule": "0 18 * * 0" }
+    {
+      "path": "/api/ig-refresh-token",
+      "schedule": "0 18 * * 0"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/go/reading",
+      "destination": "/?src=ig_dm_comment&utm_source=instagram&utm_medium=dm&utm_campaign=comment_auto&utm_content=reading",
+      "permanent": false
+    },
+    {
+      "source": "/go/seminar",
+      "destination": "/seminar.html?src=ig_dm_comment&utm_source=instagram&utm_medium=dm&utm_campaign=comment_auto&utm_content=seminar",
+      "permanent": false
+    }
   ]
 }

@@ -1,13 +1,23 @@
-// 인스타그램 댓글 웹훅 → 공개 답글 + Private Reply DM
+// 인스타그램 웹훅
+//   comments  → 공개 답글 + Private Reply DM
+//               팔로우 확인을 켜면 DM 은 "팔로우하고 '팔로우했어요'를 눌러주세요" 안내
+//   messages  → 안내를 받은 고객이 답장하면 팔로우를 확인하고 리딩 + 링크 버튼을 보낸다
+//               (팔로우 여부는 고객이 먼저 DM 을 보낸 뒤에만 조회할 수 있다 — Meta 정책)
 // 환경변수: IG_APP_SECRET, IG_VERIFY_TOKEN, IG_ACCESS_TOKEN(초기값), FIREBASE_SERVICE_ACCOUNT
 import crypto from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
-import { IG_USER_ID } from '../lib/ig/config.js';
+import { IG_USER_ID, FOLLOW_PAYLOAD, FOLLOW_BUTTON } from '../lib/ig/config.js';
 import { decide, needsShortcode } from '../lib/ig/rules.js';
-import { replyToComment, sendPrivateReply, getShortcode } from '../lib/ig/graph.js';
-import { getAccessToken, getSettings, commentRef, FieldValue } from '../lib/ig/store.js';
+import {
+  replyToComment, sendPrivateReply, sendMessage, buttonTemplate, getUserProfile, getShortcode,
+} from '../lib/ig/graph.js';
+import {
+  db, getAccessToken, getSettings, commentRef, pendingRef, FieldValue,
+} from '../lib/ig/store.js';
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+const MAX_NOT_FOLLOWING = 3; // 팔로우 안 됨 안내는 3번까지만
+const FOLLOW_QUICK_REPLY = [{ content_type: 'text', title: FOLLOW_BUTTON, payload: FOLLOW_PAYLOAD }];
 
 // Meta 웹훅 등록 시 인증
 export function GET(request) {
@@ -51,6 +61,13 @@ async function handlePayload(body) {
         console.error('[ig] comment error:', change.value?.id, e);
       }
     }
+    for (const event of entry.messaging || []) {
+      try {
+        await handleMessage(event);
+      } catch (e) {
+        console.error('[ig] message error:', event.sender?.id, e);
+      }
+    }
   }
 }
 
@@ -79,15 +96,18 @@ async function handleComment(v, entryTime) {
 
   // 같은 댓글 중복 처리 방지: 문서를 먼저 만든 쪽만 진행
   const ref = commentRef(commentId);
+  const username = v.from?.username || null;
+  const gate = settings.followGate !== false;
   try {
     await ref.create({
       mediaId: mediaId || null,
       shortcode,
       fromId,
-      username: v.from?.username || null,
+      username,
       text: String(v.text || '').slice(0, 500),
       rule: action.rule.name || action.rule.id || '',
       keyword: action.keyword,
+      gate,
       status: 'processing',
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -97,13 +117,100 @@ async function handleComment(v, entryTime) {
   }
 
   const skipped = { ok: true, skipped: true };
+  let dmTask;
+  if (gate) {
+    // 빠른 답장 버튼이 거절되면 글자만으로 다시 보낸다 (보내기 실패는 1통 제한에 들어가지 않는다)
+    dmTask = run(() => sendPrivateReply(token, commentId, settings.gateText, FOLLOW_QUICK_REPLY))
+      .then((r) => (r.ok ? r : run(() => sendPrivateReply(token, commentId, settings.gateText))));
+  } else {
+    dmTask = action.dm ? run(() => sendPrivateReply(token, commentId, action.dm)) : Promise.resolve(skipped);
+  }
   const [reply, dm] = await Promise.all([
     action.reply ? run(() => replyToComment(token, commentId, action.reply)) : skipped,
-    action.dm ? run(() => sendPrivateReply(token, commentId, action.dm)) : skipped,
+    dmTask,
   ]);
-  const status = reply.ok && dm.ok ? 'done' : reply.ok || dm.ok ? 'partial' : 'failed';
+
+  if (gate && dm.ok) {
+    await pendingRef(fromId).set({
+      commentId,
+      username,
+      content: action.content,
+      buttons: action.buttons,
+      buttonText: settings.buttonText,
+      notFollowingText: settings.notFollowingText,
+      notFollowingCount: 0,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+  const status = !dm.ok && !reply.ok ? 'failed'
+    : !dm.ok || !reply.ok ? 'partial'
+    : gate ? 'waiting' : 'done';
   await ref.update({ status, reply, dm, updatedAt: FieldValue.serverTimestamp() });
   console.log('[ig]', commentId, action.keyword, status, reply.error || '', dm.error || '');
+}
+
+// 고객이 보낸 DM: 팔로우 확인을 기다리는 사람일 때만 반응한다 (그 외 DM 은 운영자가 직접)
+async function handleMessage(event) {
+  const igsid = event.sender?.id;
+  const msg = event.message;
+  if (!igsid || igsid === IG_USER_ID) return;
+  if (!msg && !event.postback) return; // 읽음·반응 등
+  if (msg?.is_echo || msg?.is_deleted) return;
+
+  const token = await getAccessToken();
+  let ref = pendingRef(igsid);
+  let snap = await ref.get();
+  let profile = null;
+
+  // 댓글 웹훅의 ID 와 DM 의 ID 가 다르면 사용자 이름으로 찾는다
+  if (!snap.exists) {
+    profile = await getUserProfile(token, igsid).catch(() => null);
+    if (!profile?.username) return;
+    const q = await db().collection('ig_pending').where('username', '==', profile.username).limit(1).get();
+    if (q.empty) return;
+    ref = q.docs[0].ref;
+    snap = q.docs[0];
+  }
+
+  const p = snap.data();
+  const created = p.createdAt?.toMillis?.() || 0;
+  if (created && Date.now() - created > SEVEN_DAYS) { await ref.delete(); return; }
+
+  profile ||= await getUserProfile(token, igsid);
+  const cref = commentRef(p.commentId);
+
+  if (!profile.is_user_follow_business) {
+    const n = (p.notFollowingCount || 0) + 1;
+    await ref.update({ notFollowingCount: n });
+    if (n <= MAX_NOT_FOLLOWING) {
+      await sendMessage(token, igsid, { text: p.notFollowingText, quick_replies: FOLLOW_QUICK_REPLY })
+        .catch(() => sendMessage(token, igsid, { text: p.notFollowingText }));
+    }
+    await cref.update({ notFollowingCount: n, updatedAt: FieldValue.serverTimestamp() }).catch(() => {});
+    return;
+  }
+
+  // 두 번 눌러도 한 번만 보낸다: 대기 문서를 지운 쪽만 보낸다
+  const claimed = await db().runTransaction(async (tx) => {
+    const cur = await tx.get(ref);
+    if (!cur.exists) return false;
+    tx.delete(ref);
+    return true;
+  });
+  if (!claimed) return;
+
+  const delivered = await run(async () => {
+    if (p.content) await sendMessage(token, igsid, { text: p.content });
+    if (p.buttons?.length) return sendMessage(token, igsid, buttonTemplate(p.buttonText || '✨', p.buttons));
+    return {};
+  });
+  await cref.update({
+    status: delivered.ok ? 'done' : 'partial',
+    delivered,
+    followedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }).catch(() => {});
+  console.log('[ig] delivered', p.commentId, delivered.ok ? 'ok' : delivered.error);
 }
 
 async function run(fn) {
