@@ -131,15 +131,21 @@ async function handleComment(v, entryTime) {
   ]);
 
   if (gate && dm.ok) {
-    await pendingRef(fromId).set({
-      commentId,
-      username,
-      content: action.content,
-      buttons: action.buttons,
-      buttonText: settings.buttonText,
-      notFollowingText: settings.notFollowingText,
-      notFollowingCount: 0,
-      createdAt: FieldValue.serverTimestamp(),
+    // 같은 사람이 여러 게시물에 댓글을 달면 리딩을 모아 두었다가 팔로우 확인 후 한꺼번에 보낸다
+    const pref = pendingRef(fromId);
+    await db().runTransaction(async (tx) => {
+      const cur = await tx.get(pref);
+      const prev = cur.exists ? pendingItems(cur.data()) : [];
+      const items = [...prev.filter((x) => x.content !== action.content), { commentId, content: action.content }].slice(-3);
+      tx.set(pref, {
+        username,
+        items,
+        buttons: action.buttons,
+        buttonText: settings.buttonText,
+        notFollowingText: settings.notFollowingText,
+        notFollowingCount: cur.exists ? cur.get('notFollowingCount') || 0 : 0,
+        createdAt: FieldValue.serverTimestamp(),
+      });
     });
   }
   const status = !dm.ok && !reply.ok ? 'failed'
@@ -177,7 +183,9 @@ async function handleMessage(event) {
   if (created && Date.now() - created > SEVEN_DAYS) { await ref.delete(); return; }
 
   profile ||= await getUserProfile(token, igsid);
-  const cref = commentRef(p.commentId);
+  const items = pendingItems(p);
+  const updateComments = (data) => Promise.all(items.map((it) =>
+    commentRef(it.commentId).update({ ...data, updatedAt: FieldValue.serverTimestamp() }).catch(() => {})));
 
   if (!profile.is_user_follow_business) {
     const n = (p.notFollowingCount || 0) + 1;
@@ -186,7 +194,7 @@ async function handleMessage(event) {
       await sendMessage(token, igsid, { text: p.notFollowingText, quick_replies: FOLLOW_QUICK_REPLY })
         .catch(() => sendMessage(token, igsid, { text: p.notFollowingText }));
     }
-    await cref.update({ notFollowingCount: n, updatedAt: FieldValue.serverTimestamp() }).catch(() => {});
+    await updateComments({ notFollowingCount: n });
     return;
   }
 
@@ -200,18 +208,16 @@ async function handleMessage(event) {
   if (!claimed) return;
 
   const delivered = await run(async () => {
-    if (p.content) await sendMessage(token, igsid, { text: p.content });
+    for (const it of items) if (it.content) await sendMessage(token, igsid, { text: it.content });
     if (p.buttons?.length) return sendMessage(token, igsid, buttonTemplate(p.buttonText || '✨', p.buttons));
     return {};
   });
-  await cref.update({
-    status: delivered.ok ? 'done' : 'partial',
-    delivered,
-    followedAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
-  }).catch(() => {});
-  console.log('[ig] delivered', p.commentId, delivered.ok ? 'ok' : delivered.error);
+  await updateComments({ status: delivered.ok ? 'done' : 'partial', delivered, followedAt: FieldValue.serverTimestamp() });
+  console.log('[ig] delivered', items.map((it) => it.commentId).join(','), delivered.ok ? 'ok' : delivered.error);
 }
+
+// 예전 형식(댓글 1건) 대기 문서도 같이 처리한다
+const pendingItems = (p) => p.items || (p.commentId ? [{ commentId: p.commentId, content: p.content }] : []);
 
 async function run(fn) {
   try {
