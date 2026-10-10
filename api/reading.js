@@ -52,14 +52,14 @@ ${cardLines}
 - "100%", "무조건", "운명적으로 정해진" 같은 과장은 쓰지 말 것
 
 이 사람에 대한 확신:
-- 현재 카드 풀이의 첫 문장은 이 사람의 타고난 성향을 단정적으로 짚는 문장으로 시작 (참고 자료가 있으면 그 기질을 바탕으로)
+- 성향(trait)은 참고 자료가 있으면 그 기질을 바탕으로, 본문에서도 이 성향이 카드와 어떻게 맞물리는지 이어서 말할 것
 - 성향은 "책임감이 강해서 남의 짐까지 떠안는 사람이에요"처럼 구체적인 생활 장면으로 말할 것
 - 아래 말은 절대 쓰지 말 것: 사주, 팔자, 명리, 일간, 일주, 오행, 천간, 지지, 십성, 음양, 목·화·토·금·수 기운, 띠, ○○년(갑진년·병오년 등). 대신 카드의 상징, 태어난 계절, 별빛 같은 말로 표현
 
 앞날:
 - 미래 카드는 시기를 붙여 분명하게 말할 것: "앞으로 한두 달 안에", "올해가 가기 전에", "내년 봄 무렵" 등
 - 참고 자료의 '올해' 흐름과 질문을 엮어, 올해 남은 기간이 이 사람에게 어떤 시기인지 한 문장으로 못박아 줄 것
-- 질문이 있으면 답을 돌려 말하지 말고 앞부분에서 바로 말할 것 (예: "네, 풀립니다. 다만 ~")
+- 질문의 답은 answer에서 돌려 말하지 말고 바로 말할 것 (예: "네, 풀립니다. 다만 ~")
 - 건강·사고·죽음·임신·시험 합격·투자 수익은 단정해서 예언하지 말 것 (이 영역은 "이렇게 준비하면 좋아요"로)
 
 내용:
@@ -74,8 +74,17 @@ ${cardLines}
 - teaser는 왜 이 주제가 나왔는지 궁금해지게 하는 한 문장(40자 이내). 답은 말하지 말 것
 - 첫 번째 주제만 openTheme에 풀어줄 것(200~260자). 나머지 두 주제는 풀지 말 것 — 리더와 직접 이야기할 몫으로 남겨둔다
 
+따로 쓸 두 문장 (화면에서 맨 앞에 붙는다 — 본문에서 반복하지 말 것):
+- trait: ${who}님의 타고난 성향을 단정하는 한 문장 (40~70자, "${who}님은"으로 시작)
+- answer: 질문에 대한 직접적인 답 한 문장 (질문이 없으면 올해 남은 기간이 어떤 시기인지). 시기를 넣어 분명하게
+
+말투 예시:
+- 나쁜 예: "새로운 기회가 올 수도 있어요. 어떠세요?" → 좋은 예: "올해가 가기 전에 새 제안이 들어옵니다. 망설이지 말고 잡으세요."
+- 나쁜 예: "책임감이 있는 편인 것 같아요." → 좋은 예: "${who}님은 맡은 일은 끝까지 해내야 마음이 놓이는 사람이에요."
+- 나쁜 예: "관계가 복잡해질 수 있음을 암시해요." → 좋은 예: "한두 달 안에 관계에서 선택할 순간이 옵니다. 마음이 먼저 향하는 쪽이 답이에요."
+
 아래 JSON 형식으로만 응답 (다른 텍스트 없이):
-{"past":"...","present":"...","future":"...","themes":[{"title":"...","teaser":"..."},{"title":"...","teaser":"..."},{"title":"...","teaser":"..."}],"openTheme":"..."}`;
+{"trait":"...","answer":"...","past":"...","present":"...","future":"...","themes":[{"title":"...","teaser":"..."},{"title":"...","teaser":"..."},{"title":"...","teaser":"..."}],"openTheme":"..."}`;
 
   try {
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -86,9 +95,12 @@ ${cardLines}
       },
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }],
+        messages: [
+          { role: 'system', content: prompt },
+          { role: 'user', content: '지침대로 리딩을 JSON으로 작성해 주세요.' },
+        ],
         response_format: { type: 'json_object' },
-        temperature: 0.9,
+        temperature: 0.75,
       }),
     });
 
@@ -103,6 +115,14 @@ ${cardLines}
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('JSON 파싱 실패: ' + raw.slice(0, 100));
     const readings = JSON.parse(jsonMatch[0]);
+
+    // 질문의 답은 첫 카드 앞에, 타고난 성향은 현재 카드 앞에 붙여 반드시 보이게 한다
+    const lead = (s) => (typeof s === 'string' ? s.trim() : '');
+    const answer = lead(readings.answer), trait = lead(readings.trait);
+    if (answer && typeof readings.past === 'string') readings.past = `${answer} ${readings.past}`;
+    if (trait && typeof readings.present === 'string' && !readings.present.includes(trait)) {
+      readings.present = `${trait} ${readings.present}`;
+    }
 
     // 주제가 빠지거나 형식이 틀리면 클라이언트가 기본 주제로 대체하도록 제거
     const themesOk = Array.isArray(readings.themes) && readings.themes.length === 3 &&
