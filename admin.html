@@ -502,13 +502,14 @@ async function saveCustomer(id, patch, msg = '저장했어요') {
 function tabs() {
   const me = S.me, t = [];
   t.push(['customers', me.isAdmin ? '고객' : me.isCaller && !me.isLeader ? '내 콜링' : me.isLeader && !me.isCaller ? '내 고객' : '내 담당']);
-  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '리더·콜러 등록'], ['instagram', '인스타그램']);
+  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '역할 등록'], ['instagram', '인스타그램']);
   return t;
 }
 
 function render() {
   const me = S.me;
-  const roleNames = [me.isSuper ? '최고 관리자' : me.isAdmin && '관리자', me.isLeader && '리더', me.isCaller && '콜러'].filter(Boolean).join('·');
+  const roleNames = [me.isSuper ? '최고 관리자' : me.isAdmin && '관리자', me.isLeader && '리더', me.isCaller && '콜러',
+    me.roles.seminarStaff && '세미나 스태프', me.roles.marketing && '마케팅'].filter(Boolean).join('·');
   $('#me-label').textContent = `${me.name} (${roleNames})`;
   const ts = tabs();
   if (!ts.some(([k]) => k === S.tab)) S.tab = ts[0][0];
@@ -1293,12 +1294,13 @@ function renderStaff() {
         <input type="checkbox" data-role="${role}" data-uid="${esc(u.uid)}" ${r[role] ? 'checked' : ''} ${allowed ? '' : 'disabled'}> ${label}</label>`;
     return `<tr>
       <td><b>${esc(u.name)}</b></td><td class="muted">${esc(u.email)}</td>
-      <td>${isSuperRow ? '<span class="badge b-stage">최고 관리자</span> ' : tog('admin', '관리자', me.isSuper)}${tog('leader', '리더', true)}${tog('caller', '콜러', true)}</td>
+      <td>${isSuperRow ? '<span class="badge b-stage">최고 관리자</span> ' : tog('admin', '관리자', me.isSuper)}${tog('leader', '리더', true)}${tog('caller', '콜러', true)}${tog('seminarStaff', '세미나 스태프', true)}${tog('marketing', '마케팅', true)}</td>
       <td class="muted small">${fmt(u.createdAt, false)}</td><td class="muted small">${fmt(u.lastLoginAt)}</td>
+      <td><input class="inp" data-instructor="${esc(u.uid)}" maxlength="20" placeholder="이름" value="${esc(u.instructor || '')}" style="min-width:110px"></td>
     </tr>`;
   }).join('');
   return `
-    <div class="page-title">리더·콜러 등록</div>
+    <div class="page-title">역할 등록</div>
     <div class="panel">
       <h3>리더 <span class="muted small">고객 상세에서 담당 리더로 배정할 수 있어요 (1인당 ${LEADER_CAP}명 권장)</span></h3>
       ${chipList('leader', '리더')}
@@ -1308,13 +1310,21 @@ function renderStaff() {
       ${chipList('caller', '콜러')}
     </div>
     <div class="panel">
+      <h3>세미나 스태프 <span class="muted small">현장 안내, 카페 섭외, 굿즈 준비, 공간 연출</span></h3>
+      ${chipList('seminarStaff', '세미나 스태프')}
+    </div>
+    <div class="panel">
+      <h3>마케팅 <span class="muted small">루미 릴스 제작, 광고 운영</span></h3>
+      ${chipList('marketing', '마케팅')}
+    </div>
+    <div class="panel">
       <h3>관리자 <span class="muted small">${me.isSuper ? '전체 고객 조회·배정·등록 권한' : '관리자 지정은 최고 관리자만 할 수 있어요'}</span></h3>
       ${chipList('admin', '관리자')}
     </div>
 
     <div class="page-title" style="margin-top:8px">가입자 목록 <span class="sub">관리자 페이지에 구글로 로그인한 사람들 — 체크해서 역할을 지정하세요</span></div>
     <div class="table-wrap"><table>
-      <thead><tr><th>이름</th><th>이메일</th><th>역할</th><th>가입</th><th>최근 로그인</th></tr></thead>
+      <thead><tr><th>이름</th><th>이메일</th><th>역할 (여러 개 선택 가능)</th><th>가입</th><th>최근 로그인</th><th>담당교관</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     <div class="muted small" style="margin-top:8px">새로 등록할 사람에게 이 페이지 주소를 알려주고 구글 로그인을 한 번 하게 하면 목록에 나타나요.</div>`;
 }
@@ -1328,12 +1338,22 @@ document.addEventListener('click', async e => {
 document.addEventListener('change', async e => {
   const b = e.target.closest('input[data-role]');
   if (b) await setRole(b.dataset.uid, b.dataset.role, b.checked);
+  const ins = e.target.closest('input[data-instructor]');
+  if (ins) {
+    const u = S.users.find(x => x.uid === ins.dataset.instructor);
+    const instructor = ins.value.trim().slice(0, 20);
+    try {
+      await updateDoc(doc(db, 'users', u.uid), {instructor, instructorUpdatedAt: serverTimestamp()});
+      u.instructor = instructor;
+      toast(`${u.name}: 담당교관 ${instructor || '비움'}`);
+    } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }
+  }
 });
 
 async function setRole(uid, role, on) {
   const u = S.users.find(x => x.uid === uid);
-  const labels = {admin: '관리자', leader: '리더', caller: '콜러'};
-  if (!on && role !== 'admin') {
+  const labels = {admin: '관리자', leader: '리더', caller: '콜러', seminarStaff: '세미나 스태프', marketing: '마케팅'};
+  if (!on && (role === 'leader' || role === 'caller')) {
     const k = role === 'leader' ? 'leaderUid' : 'callerUid';
     const n = [...S.customers.values()].filter(c => c[k] === uid).length;
     if (n && !confirm(`${u.name}님에게 배정된 고객 ${n}명이 있어요. ${labels[role]} 등록을 해제해도 배정은 그대로 남아요. 계속할까요?`)) { render(); return; }

@@ -110,7 +110,9 @@ service cloud.firestore {
       allow update: if (signedIn() && request.auth.uid == uid
             && changed().hasOnly(['name', 'photoURL', 'lastLoginAt']))
         || (isAdmin()
-            && changed().hasOnly(['roles', 'rolesUpdatedAt'])
+            && changed().hasOnly(['roles', 'rolesUpdatedAt', 'instructor', 'instructorUpdatedAt'])
+            && (!('instructor' in request.resource.data)
+                || (request.resource.data.instructor is string && request.resource.data.instructor.size() <= 20))
             && (isSuper()
                 || request.resource.data.get('roles', {}).get('admin', false)
                    == resource.data.get('roles', {}).get('admin', false)));
