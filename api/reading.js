@@ -88,23 +88,36 @@ ${cardLines}
 아래 JSON 형식으로만 응답 (다른 텍스트 없이):
 {"trait":"...","answer":"...","past":"...","present":"...","future":"...","themes":[{"title":"...","teaser":"..."},{"title":"...","teaser":"..."},{"title":"...","teaser":"..."}],"openTheme":"..."}`;
 
-  try {
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+  // 최신 추론 모델로 먼저 쓰고, 실패하면 예전 모델로 한 번 더 시도한다
+  const callModel = (model) => {
+    const reasoning = /^(gpt-[5-9]|o\d)/.test(model);
+    return fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || 'gpt-4o',
+        model,
         messages: [
           { role: 'system', content: prompt },
           { role: 'user', content: '지침대로 리딩을 JSON으로 작성해 주세요.' },
         ],
         response_format: { type: 'json_object' },
-        temperature: 0.75,
+        // 추론 모델은 temperature 대신 추론 강도를 받는다 (low = 빠른 응답)
+        ...(reasoning ? { reasoning_effort: 'low' } : { temperature: 0.75 }),
       }),
     });
+  };
+
+  try {
+    const primary = process.env.OPENAI_READING_MODEL || 'gpt-6.1-sol';
+    const fallback = process.env.OPENAI_MODEL || 'gpt-4o';
+    let resp = await callModel(primary);
+    if (!resp.ok && fallback !== primary) {
+      console.error('[reading] primary model error', primary, resp.status, await resp.text());
+      resp = await callModel(fallback);
+    }
 
     if (!resp.ok) {
       const err = await resp.text();
@@ -113,6 +126,8 @@ ${cardLines}
     }
 
     const data = await resp.json();
+    console.log('[reading] model', data.model);
+    res.setHeader('X-Reading-Model', String(data.model || ''));
     const raw = data.choices[0].message.content;
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('JSON 파싱 실패: ' + raw.slice(0, 100));
