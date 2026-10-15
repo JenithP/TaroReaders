@@ -2,6 +2,10 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/presentation/:path*",
+      "destination": "/outputs/starry-dynamic-presentation/:path*"
+    },
+    {
       "source": "/privacy",
       "destination": "/privacy.html"
     },
@@ -17,6 +21,11 @@
     }
   ],
   "redirects": [
+    {
+      "source": "/presentation",
+      "destination": "/presentation/index.html",
+      "permanent": false
+    },
     {
       "source": "/go/reading",
       "destination": "/?src=ig_dm_comment&utm_source=instagram&utm_medium=dm&utm_campaign=comment_auto&utm_content=reading",

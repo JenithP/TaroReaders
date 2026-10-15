@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>별빛타로 역동 발표자료</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="deck" id="deck">
+    <div class="night-sky" aria-hidden="true"></div>
+    <div class="stars-layer" id="starsLayer" aria-hidden="true"></div>
+    <div class="stage-vignette" aria-hidden="true"></div>
+
+    <nav class="rail" id="rail" aria-label="발표 흐름">
+      <span class="rail-chip" data-chip="1">문제</span>
+      <span class="rail-chip" data-chip="2">전환</span>
+      <span class="rail-chip" data-chip="3">유입</span>
+      <span class="rail-chip" data-chip="4">연결</span>
+      <span class="rail-chip" data-chip="5">세미나</span>
+      <span class="rail-chip" data-chip="6">운영</span>
+    </nav>
+
+    <section class="slide active intro-slide" data-slide="0">
+      <h1 class="traveler-word">여행자여</h1>
+      <div class="lantern-wrap">
+        <div class="lantern">
+          <img src="assets/mystic-lantern.png" alt="신비한 별빛 램프" />
+        </div>
+      </div>
+    </section>
+
+    <section class="slide title-slide star-transition meteor-title" data-slide="1">
+      <video class="stardust-video meteor-video" muted playsinline preload="auto" data-speed="3.2" aria-hidden="true">
+        <source src="assets/meteor-shower-title.mp4" type="video/mp4" />
+
+      </video>
+      <div class="stardust-tint" aria-hidden="true"></div>
+      <div class="content center">
+        <div class="small-label rise">STARRY TAROT</div>
+        <h1 class="silver-title rise delay-1">별빛타로</h1>
+        <p class="subtitle rise delay-2">인스타그램과 AI 타로사이트를 활용한 온라인 전도도구</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="2">
+      <div class="content center">
+        <div class="small-label rise">QUESTION</div>
+        <h2 class="question-title rise delay-1">부녀회, 그리고<br>강동교회 전체가<br><span>당면한 과제는?</span></h2>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="3">
+      <div class="content split">
+        <div class="chart-area pop">
+          <div class="pie" aria-label="3040이 가장 작은 포션으로 표시된 연령 구성 차트">
+            <span class="pie-center">3040</span>
+          </div>
+          <div class="legend">
+            <span><i class="c-youth"></i>1020</span>
+            <span><i class="c-3040"></i>3040</span>
+            <span><i class="c-5060"></i>5060</span>
+            <span><i class="c-senior"></i>60+</span>
+          </div>
+        </div>
+        <div class="message-card sweep delay-2">
+          <div class="small-label problem">핵심 과제</div>
+          <h3>차세대 성장 동력인<br><span>3040 비중이 낮습니다.</span></h3>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide why-slide" data-slide="4">
+      <div class="content center">
+        <h1 class="why-only rise">왜 그럴까?</h1>
+      </div>
+    </section>
+
+    <section class="slide why-map" data-slide="5">
+      <div class="corner-heading rise">왜 그럴까?</div>
+      <div class="reason-stack">
+        <div class="reason-card pop">
+          <strong>3040을 전도할 핵심 인력인<br><em class="reason-emphasis">3040의 활동률이 낮다</em></strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide why-map" data-slide="6">
+      <div class="corner-heading">왜 그럴까?</div>
+      <div class="reason-flow vertical">
+        <div class="reason-card root active">3040 활동률 저하</div>
+        <div class="reason-branches single">
+          <div class="reason-card branch pop delay-1">
+            <strong>전면에 나서기 어려운 세대</strong>
+            <span>관계망과 사회생활 안에서 조심스러움</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide why-map" data-slide="7">
+      <div class="corner-heading">왜 그럴까?</div>
+      <div class="reason-flow vertical">
+        <div class="reason-card root active">3040 활동률 저하</div>
+        <div class="reason-branches double">
+          <div class="reason-card branch offset-left">
+          <strong>전면에 나서기 어려운 세대</strong>
+          <span>관계망과 사회생활 안에서 조심스러움</span>
+          </div>
+          <div class="reason-card branch pop delay-1">
+            <strong>생업과 가정으로 전도 시간 확보가 어려움</strong>
+            <span>일상과 돌봄이 겹쳐 실제 시간을 내기 어려움</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide thought-slide" data-slide="8">
+      <div class="content center">
+        <img class="lumi-thinking rise" src="assets/lumi-thinking.png" alt="고민하는 루미" />
+        <h2 class="rise delay-1">그래서 우리는<br><span>고민했습니다.</span></h2>
+      </div>
+    </section>
+
+    <section class="slide method-slide" data-slide="9">
+      <div class="content center">
+        <div class="method-grid">
+          <div class="method-icon pop">
+            <div class="icon table-icon"></div>
+            <strong>좌판전도</strong>
+          </div>
+          <div class="method-icon pop delay-1">
+            <div class="icon friend-icon"></div>
+            <strong>지인전도</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide method-slide" data-slide="10">
+      <div class="content center">
+        <div class="method-grid disabled">
+          <div class="method-icon strike">
+            <div class="icon table-icon"></div>
+            <strong>좌판전도</strong>
+          </div>
+          <div class="method-icon strike delay-1">
+            <div class="icon friend-icon"></div>
+            <strong>지인전도</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide method-slide" data-slide="11">
+      <div class="content center">
+        <div class="method-grid fly-left">
+          <div class="method-icon ghost"><div class="icon table-icon"></div><strong>좌판전도</strong></div>
+          <div class="method-icon ghost"><div class="icon friend-icon"></div><strong>지인전도</strong></div>
+        </div>
+        <div class="method-grid new-methods">
+          <div class="method-icon pop delay-1">
+            <div class="icon automation-icon"></div>
+            <strong>찾기의 자동화</strong>
+          </div>
+          <div class="method-icon pop delay-2">
+            <div class="icon magnet-icon"></div>
+            <strong>대상자가 자동 유입되는 구조</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide method-slide tool-slide" data-slide="12">
+      <div class="content center">
+        <div class="tool-combo pop delay-1">
+          <img src="assets/lumi.webp" alt="루미" />
+          <div class="plus">+</div>
+          <div class="instagram-mark"></div>
+        </div>
+        <h2 class="tool-caption rise delay-2">인스타그램과 AI 타로사이트를 활용한<br><span>온라인 전도도구</span></h2>
+      </div>
+    </section>
+
+    <section class="slide star-transition stardust-reveal" data-slide="13">
+      <video class="stardust-video" muted playsinline preload="auto" data-speed="5.8" aria-hidden="true">
+        <source src="assets/stardust-transition.mp4" type="video/mp4" />
+      </video>
+      <div class="stardust-tint" aria-hidden="true"></div>
+      <div class="content center">
+        <h1 class="silver-title smaller rise transition-title">별빛타로<br>온라인전도 파이프라인</h1>
+      </div>
+    </section>
+
+    <section class="slide pipeline-intro pipeline-explain" data-slide="14">
+      <div class="content pipeline-layout">
+        <aside class="pipeline-title rise">
+          <span>PIPELINE</span>
+          <h2>별빛타로<br>온라인전도<br>파이프라인</h2>
+          <p>인스타그램 → AI 타로사이트 → 상담·세미나</p>
+        </aside>
+        <div class="pipeline-body two-phones">
+          <div class="phone-frame instagram-phone pop">
+            <div class="phone-screen instagram-carousel" data-carousel-index="0">
+              <img class="ig-shot active" src="assets/instagram-shot.jpg" alt="별빛타로 인스타그램 화면 1" />
+              <img class="ig-shot" src="assets/instagram-02.jpg" alt="별빛타로 인스타그램 화면 2" />
+              <img class="ig-shot" src="assets/instagram-03.jpg" alt="별빛타로 인스타그램 화면 3" />
+              <video class="reels-video" muted playsinline preload="metadata" loop>
+                <source src="assets/reels.mp4" type="video/mp4" />
+
+              </video>
+              <div class="ig-dots" aria-hidden="true"><i class="active"></i><i></i><i></i></div>
+              <button class="phone-hotspot instagram-hotspot" type="button" aria-label="인스타그램 화면 넘기기"></button>
+            </div>
+          </div>
+          <div class="site-panel glow-pop delay-1">
+            <img src="assets/starry-reading-site.png" alt="별빛타로 사이트 첫 화면" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide pipeline-features pipeline-explain" data-slide="15">
+      <div class="content pipeline-layout">
+        <aside class="pipeline-title">
+          <span>PIPELINE</span>
+          <h2>별빛타로<br>온라인전도<br>파이프라인</h2>
+          <p>인스타그램 → AI 타로사이트 → 상담·세미나</p>
+        </aside>
+        <div class="pipeline-body feature-stage">
+          <div class="phone-frame instagram-phone pop">
+            <div class="phone-screen instagram-carousel" data-carousel-index="0">
+              <img class="ig-shot active" src="assets/instagram-shot.jpg" alt="별빛타로 인스타그램 화면 1" />
+              <img class="ig-shot" src="assets/instagram-02.jpg" alt="별빛타로 인스타그램 화면 2" />
+              <img class="ig-shot" src="assets/instagram-03.jpg" alt="별빛타로 인스타그램 화면 3" />
+              <video class="reels-video" muted playsinline preload="metadata" loop>
+                <source src="assets/reels.mp4" type="video/mp4" />
+
+              </video>
+              <div class="ig-dots" aria-hidden="true"><i class="active"></i><i></i><i></i></div>
+              <button class="phone-hotspot instagram-hotspot" type="button" aria-label="인스타그램 화면 넘기기"></button>
+            </div>
+          </div>
+          <div class="site-panel flying">
+            <img src="assets/starry-reading-site.png" alt="" />
+          </div>
+          <div class="feature-list">
+            <div class="feature-card sweep">릴스 콘텐츠로 자연스럽게 유입</div>
+            <div class="feature-card sweep delay-1">댓글 키워드 → 자동 DM으로 사이트 안내</div>
+            <div class="feature-card sweep delay-2">세미나 정보까지 바로 연결</div>
+            <div class="feature-card sweep delay-3">알고리즘 분석과 광고로 찾기 확장</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide site-demo-slide pipeline-explain" data-slide="16">
+      <div class="content pipeline-layout">
+        <aside class="pipeline-title">
+          <span>PIPELINE</span>
+          <h2>별빛타로<br>온라인전도<br>파이프라인</h2>
+          <p>인스타그램 → AI 타로사이트 → 상담·세미나</p>
+        </aside>
+        <div class="pipeline-body phone-demo-layout">
+          <div class="phone-frame tall site-demo pop" data-demo-index="0">
+            <div class="phone-screen site-screens">
+              <div class="phone-panel active">
+                <img src="assets/site-shots/site-01.jpg" data-candidates="assets/site-shots/site-01.jpg|assets/site-shots/site-01.png" alt="별빛타로 모바일 화면 1" />
+                <div class="mock-screen"><b>별빛타로</b><span>첫 화면</span></div>
+              </div>
+              <div class="phone-panel">
+                <img src="assets/site-shots/site-02.jpg" data-candidates="assets/site-shots/site-02.jpg" alt="별빛타로 모바일 화면 2" />
+                <div class="mock-screen"><b>질문 입력</b><span>이름·생년월일·고민</span></div>
+              </div>
+              <div class="phone-panel">
+                <img src="assets/site-shots/site-03.jpg" data-candidates="assets/site-shots/site-03.jpg" alt="별빛타로 모바일 화면 3" />
+                <div class="mock-screen"><b>카드 선택</b><span>관심이 행동으로 바뀌는 순간</span></div>
+              </div>
+              <div class="phone-panel">
+                <img src="assets/site-shots/site-04.jpg" data-candidates="assets/site-shots/site-04.jpg" alt="별빛타로 모바일 화면 4" />
+                <div class="mock-screen"><b>AI 리딩</b><span>내 이야기처럼 읽히는 결과</span></div>
+              </div>
+              <div class="phone-panel">
+                <img src="assets/site-shots/site-05.jpg" data-candidates="assets/site-shots/site-05.jpg" alt="별빛타로 모바일 화면 5" />
+                <div class="mock-screen"><b>카톡 상담</b><span>1:1 대화로 이동</span></div>
+              </div>
+              <div class="phone-panel">
+                <img src="assets/site-shots/site-06.jpg" data-candidates="assets/site-shots/site-06.jpg" alt="별빛타로 모바일 화면 6" />
+                <div class="mock-screen"><b>세미나 신청</b><span>밤 카페 모임으로 연결</span></div>
+              </div>
+              <div class="phone-panel">
+                <img src="assets/site-shots/site-07.jpg" data-candidates="assets/site-shots/site-07.jpg" alt="별빛타로 모바일 화면 7" />
+                <div class="mock-screen"><b>신청 완료</b><span>관리사이트에 기록</span></div>
+              </div>
+              <button class="phone-hotspot site-hotspot" type="button" aria-label="사이트 화면 넘기기"></button>
+            </div>
+          </div>
+          <div class="demo-copy">
+            <p class="demo-site-summary rise delay-1"><strong>타로리딩사이트 :</strong> 대상자의 문제에 대해<br>실제 타로 리딩 결과를 주어 해결책을 제시</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide connection-slide connection-continuation" data-slide="17">
+      <div class="content pipeline-layout">
+        <aside class="pipeline-title">
+          <span>PIPELINE</span>
+          <h2>별빛타로<br>온라인전도<br>파이프라인</h2>
+          <p>인스타그램 → AI 타로사이트 → 상담·세미나</p>
+        </aside>
+        <div class="pipeline-body connection-pipeline-stage">
+          <div class="phone-frame tall connection-site-phone pop">
+            <div class="phone-screen site-screens">
+              <div class="phone-panel active">
+                <img src="assets/site-shots/site-04.jpg" data-candidates="assets/site-shots/site-04.jpg" alt="별빛타로 타로 리딩 결과 화면" />
+                <div class="mock-screen"><b>AI 리딩</b><span>타로 결과 화면</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="online-connection-copy">
+            <section class="mini-flow-section primary pop delay-1">
+              <h3>1:1 상담 연결</h3>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide connection-slide connection-continuation" data-slide="18">
+      <div class="content pipeline-layout">
+        <aside class="pipeline-title">
+          <span>PIPELINE</span>
+          <h2>별빛타로<br>온라인전도<br>파이프라인</h2>
+          <p>인스타그램 → AI 타로사이트 → 상담·세미나</p>
+        </aside>
+        <div class="pipeline-body connection-pipeline-stage">
+          <div class="phone-frame tall connection-site-phone">
+            <div class="phone-screen site-screens">
+              <div class="phone-panel active">
+                <img src="assets/site-shots/site-04.jpg" data-candidates="assets/site-shots/site-04.jpg" alt="별빛타로 타로 리딩 결과 화면" />
+                <div class="mock-screen"><b>AI 리딩</b><span>타로 결과 화면</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="online-connection-copy">
+            <section class="mini-flow-section primary">
+              <h3>1:1 상담 연결</h3>
+              <div class="mini-flow-line">
+                <b class="pop delay-1">타로 결과 확인</b>
+                <i class="draw delay-2"></i>
+                <b class="pop delay-2">카톡 상담 연결</b>
+                <i class="draw delay-3"></i>
+                <b class="pop delay-3">타로 Reader와 연결</b>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide connection-slide connection-continuation" data-slide="19">
+      <div class="content pipeline-layout">
+        <aside class="pipeline-title">
+          <span>PIPELINE</span>
+          <h2>별빛타로<br>온라인전도<br>파이프라인</h2>
+          <p>인스타그램 → AI 타로사이트 → 상담·세미나</p>
+        </aside>
+        <div class="pipeline-body connection-pipeline-stage">
+          <div class="phone-frame tall connection-site-phone">
+            <div class="phone-screen site-screens">
+              <div class="phone-panel active">
+                <img src="assets/site-shots/site-04.jpg" data-candidates="assets/site-shots/site-04.jpg" alt="별빛타로 타로 리딩 결과 화면" />
+                <div class="mock-screen"><b>AI 리딩</b><span>타로 결과 화면</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="online-connection-copy">
+            <section class="mini-flow-section primary">
+              <h3>1:1 상담 연결</h3>
+              <div class="mini-flow-line complete">
+                <b>타로 결과 확인</b>
+                <i></i>
+                <b>카톡 상담 연결</b>
+                <i></i>
+                <b>타로 Reader와 연결</b>
+              </div>
+            </section>
+            <section class="mini-flow-section seminar pop delay-1">
+              <h3>세미나 연결</h3>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide connection-slide connection-continuation" data-slide="20">
+      <div class="content pipeline-layout">
+        <aside class="pipeline-title">
+          <span>PIPELINE</span>
+          <h2>별빛타로<br>온라인전도<br>파이프라인</h2>
+          <p>인스타그램 → AI 타로사이트 → 상담·세미나</p>
+        </aside>
+        <div class="pipeline-body connection-pipeline-stage">
+          <div class="phone-frame tall connection-site-phone">
+            <div class="phone-screen site-screens">
+              <div class="phone-panel active">
+                <img src="assets/site-shots/site-04.jpg" data-candidates="assets/site-shots/site-04.jpg" alt="별빛타로 타로 리딩 결과 화면" />
+                <div class="mock-screen"><b>AI 리딩</b><span>타로 결과 화면</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="online-connection-copy">
+            <section class="mini-flow-section primary">
+              <h3>1:1 상담 연결</h3>
+              <div class="mini-flow-line complete">
+                <b>타로 결과 확인</b>
+                <i></i>
+                <b>카톡 상담 연결</b>
+                <i></i>
+                <b>타로 Reader와 연결</b>
+              </div>
+            </section>
+            <section class="mini-flow-section seminar">
+              <h3>세미나 연결</h3>
+              <div class="mini-flow-line">
+                <b class="pop delay-1">사이트 신청</b>
+                <i class="draw delay-2"></i>
+                <b class="pop delay-2">세미나</b>
+                <i class="draw delay-3"></i>
+                <b class="pop delay-3">타로 Reader와 연결</b>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide seminar-scene" data-slide="21">
+      <img class="seminar-photo bw" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="별빛타로 세미나 전경" />
+      <div class="photo-shade"></div>
+      <div class="content title-over-photo">
+        <h1 class="rise">별빛타로의<br>세미나 구성</h1>
+      </div>
+    </section>
+
+    <section class="slide seminar-scene" data-slide="22">
+      <img class="seminar-photo bw soft" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="별빛타로 세미나 전경" />
+      <div class="photo-shade"></div>
+      <div class="content seminar-features">
+        <button class="seminar-site-shot glow-pop" type="button" aria-label="세미나 페이지 확대" aria-haspopup="dialog" aria-expanded="false">
+          <img src="assets/starry-seminar-page.png" alt="별빛타로 세미나 신청 화면" />
+        </button>
+        <div class="seminar-texts">
+          <div class="feature-card sweep">대상자가 직접 사이트에서 신청하는 구조</div>
+          <div class="feature-card sweep delay-1">밤에 진행되는 신비한 분위기 컨셉</div>
+          <div class="feature-card sweep delay-2">굿즈 판매로 세미나 명분 형성</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide seminar-focus lecturer-color" data-slide="24">
+      <img class="seminar-photo bw lecturer-zoomed" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="강연자 줌인 흑백" />
+      <img class="seminar-photo lecturer-zoomed lecturer-color-scene" src="assets/seminar-cafe-lecturer-color-v3-bandana.png" alt="강연자에게만 컬러가 켜진 세미나 장면" />
+      <div class="focus-vignette lecturer-vignette"></div>
+    </section>
+
+    <section class="slide seminar-focus lecturer-portrait-slide" data-slide="25">
+      <img class="seminar-photo lecturer-zoomed" src="assets/seminar-cafe-lecturer-color-v3-bandana.png" alt="컬러가 켜진 강연자 세미나 장면" />
+      <img class="seminar-photo lecturer-zoomed lecturer-front-scene" src="assets/seminar-cafe-lecturer-front-v6.png" alt="정면을 바라보는 강연자 세미나 장면" />
+      <div class="focus-vignette lecturer-vignette"></div>
+    </section>
+
+    <section class="slide seminar-scene seminar-reset" data-slide="27">
+      <img class="seminar-photo bw reset-from-lecturer" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="별빛타로 세미나 전경으로 돌아가기" />
+      <div class="photo-shade"></div>
+    </section>
+
+    <section class="slide seminar-focus booth-zoom" data-slide="28">
+      <img class="seminar-photo bw zoom-booth" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="타로 Reader 상담 테이블 줌인" />
+    </section>
+
+    <section class="slide seminar-focus booth-color" data-slide="29">
+      <img class="seminar-photo bw zoom-booth" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="타로 Reader 상담 테이블 흑백" />
+      <img class="seminar-photo zoom-booth tarot-reader-color-scene" src="assets/seminar-cafe-reader-color-v3.png" alt="타로 Reader만 컬러로 켜진 세미나 장면" />
+      <div class="reader-namecard pop delay-1">타로 Reader</div>
+    </section>
+
+    <section class="slide seminar-scene seminar-reset" data-slide="30">
+      <img class="seminar-photo bw reset-from-reader" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="별빛타로 세미나 전경으로 돌아가기" />
+      <div class="photo-shade"></div>
+    </section>
+
+    <section class="slide seminar-focus goods-zoom" data-slide="31">
+      <img class="seminar-photo bw zoom-goods" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="굿즈 테이블 줌인" />
+    </section>
+
+    <section class="slide seminar-focus goods-color" data-slide="32">
+      <img class="seminar-photo bw zoom-goods" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="굿즈 테이블 흑백" />
+      <img class="seminar-photo zoom-goods goods-color-scene" src="assets/seminar-cafe-goods-color-v3.png" alt="굿즈 테이블만 컬러로 켜진 세미나 장면" />
+      <div class="reader-namecard goods-namecard pop delay-1">굿즈존</div>
+    </section>
+
+    <section class="slide seminar-scene seminar-reset" data-slide="32.5">
+      <img class="seminar-photo bw reset-from-goods" src="assets/seminar-cafe-yeonkyung-angle-bw.png" data-candidates="assets/seminar-cafe-yeonkyung-angle-bw.png" alt="별빛타로 세미나 전경으로 돌아가기" />
+      <div class="photo-shade"></div>
+    </section>
+
+    <section class="slide star-transition stardust-reveal" data-slide="33">
+      <video class="stardust-video" muted playsinline preload="auto" data-speed="5.8" aria-hidden="true">
+        <source src="assets/stardust-transition.mp4" type="video/mp4" />
+      </video>
+      <div class="stardust-tint" aria-hidden="true"></div>
+      <div class="content center">
+        <h1 class="silver-title smaller rise transition-title power-transition-title">별빛타로 파이프라인의<br>실질 파워</h1>
+      </div>
+    </section>
+
+    <section class="slide admin-slide power-explain" data-slide="34">
+      <div class="content power-layout">
+        <aside class="power-title rise">
+          <span>REAL POWER</span>
+          <h2>별빛타로<br>파이프라인의<br>실질 파워</h2>
+          <p>유입 이후의 사람과 과정을 관리 가능한 흐름으로 만듭니다</p>
+        </aside>
+        <button class="power-body admin-shot glow-pop" type="button" data-zoom-crop="105,245,1710,236" aria-label="고객 관리 표 확대" aria-haspopup="dialog" aria-expanded="false">
+          <img src="assets/starry-admin-dashboard.png" alt="별빛타로 고객관리창" />
+        </button>
+      </div>
+    </section>
+
+    <section class="slide admin-slide power-explain" data-slide="35">
+      <div class="content power-layout">
+        <aside class="power-title">
+          <span>REAL POWER</span>
+          <h2>별빛타로<br>파이프라인의<br>실질 파워</h2>
+          <p>인스타그램 반응과 사이트 유입을 함께 확인합니다</p>
+        </aside>
+        <button class="power-body admin-shot glow-pop" type="button" data-zoom-crop="105,170,1710,730" aria-label="인스타그램 자동응답 화면 확대" aria-haspopup="dialog" aria-expanded="false">
+          <img src="assets/starry-instagram-admin.png" alt="별빛타로 인스타그램 관리창" />
+        </button>
+      </div>
+    </section>
+
+    <section class="slide collaboration-slide power-explain" data-slide="36">
+      <div class="content power-layout">
+        <aside class="power-title">
+          <span>REAL POWER</span>
+          <h2>별빛타로<br>파이프라인의<br>실질 파워</h2>
+          <p>3040부서와 실제 운영 역할을 나눠 협업합니다</p>
+        </aside>
+        <div class="power-body collab-content">
+          <h2 class="rise delay-1">3040부서와의 긴밀한 협업 라인<br><span>구축 완료</span></h2>
+          <div class="role-grid">
+            <button class="role-card pop delay-1" type="button">
+              <strong>세미나 스태프</strong>
+              <span>현장 안내 · 카페 섭외 · 굿즈 준비 · 공간 연출</span>
+            </button>
+            <button class="role-card pop delay-2 marketing-card" type="button">
+              <strong>마케팅</strong>
+              <span>루미 릴스 제작 · 광고 운영 · 반응 분석</span>
+            </button>
+            <button class="role-card pop delay-3" type="button">
+              <strong>Reader</strong>
+              <span>타로 리딩 · 소모임 안내 · 후속 만남 연결</span>
+            </button>
+            <button class="role-card pop delay-4" type="button">
+              <strong>상담 콜러</strong>
+              <span>카톡 상담 · 세미나 참석 확인 · 관계 지속</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="goods-popup" id="goodsPopup">
+        <img src="assets/lumi-goods-concept-board.png" data-candidates="assets/lumi-goods-concept-board.png" alt="루미 굿즈 콘셉트" />
+      </div>
+    </section>
+
+    <section class="slide ad-slide power-explain" data-slide="37">
+      <div class="content power-layout">
+        <aside class="power-title">
+          <span>REAL POWER</span>
+          <h2 class="marketing-left-title"><span>알고리즘을</span><span>읽는</span><span>마케팅</span><span>전략</span></h2>
+          <p>반응이 생긴 콘텐츠를 찾고, 광고로 확장합니다</p>
+        </aside>
+        <div class="power-body metrics-layout">
+          <div class="marketing-analysis-card sweep">
+            <p class="major analysis-title">기존 타로인스타그램 마케팅 전략 분석</p>
+            <p class="major delay-1">알고리즘을 타는 게시물의 특성 분석</p>
+            <p class="detail delay-2">=&gt; 게시물의 업로드 시간, 배경 음악, 콘텐츠 내용 등 세밀하게 조정하며 관리 중</p>
+            <p class="major delay-3">현재, 광고 없이 800 조회수 및 댓글 수 30개가 넘었던 콘텐츠도 존재</p>
+            <p class="detail delay-4">=&gt; 1만원의 광고테스트 후 조회수 3배상승 확인 : 찾기수에 대한 기대감 증폭</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide funnel-slide power-explain" data-slide="38">
+      <div class="content power-layout">
+        <aside class="power-title">
+          <span>FUNNEL</span>
+          <h2>퍼널 분석</h2>
+          <p>릴스 반응이 실제 상담과 세미나로 이어지는지 추적합니다</p>
+        </aside>
+        <div class="power-body funnel-layout">
+          <div class="funnel">
+            <div class="funnel-tier w100 pop"><b>3만 조회</b><span>릴스 노출</span></div>
+            <div class="funnel-tier w74 pop delay-1"><b>댓글 300</b><span>키워드 반응 1%</span></div>
+            <div class="funnel-tier w52 pop delay-2"><b>연락처 8</b><span>DM·사이트 전환</span></div>
+            <div class="funnel-tier w34 pop delay-3"><b>참석 3</b><span>상담·세미나</span></div>
+            <div class="funnel-tier w20 pop delay-4"><b>매칭 1</b><span>멘토·교관 연결</span></div>
+          </div>
+          <p class="source-note">근거: 실제 릴스 테스트값과 온라인 마케팅 퍼널의 일반 전환율을 기준으로 한 보수 추정치입니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide summary-slide" data-slide="39">
+      <div class="content center">
+        <h1 class="silver-title smaller rise">별빛타로</h1>
+        <div class="summary-grid">
+          <div class="summary-card pop"><span>온라인</span><span>찾기 자동화</span></div>
+          <div class="summary-card pop delay-1"><span>3040 전면 부담</span><span>감소</span></div>
+          <div class="summary-card pop delay-2"><span>AI 타로 콘텐츠</span><span>유입</span></div>
+          <div class="summary-card pop delay-3"><span>1:1 상담·세미나</span><span>연결</span></div>
+          <div class="summary-card pop delay-4"><span>관리사이트로</span><span>흐름 추적</span></div>
+          <div class="summary-card pop delay-5"><span>3040</span><span>협업형 운영</span></div>
+        </div>
+        <div class="summary-qr pop delay-5">
+          <img src="assets/starrytarot-site-qr.png" alt="별빛타로 사이트 QR 코드" />
+          <div>
+            <strong>별빛타로 사이트</strong>
+            <span>starrytarotcom.vercel.app</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide thanks-slide" data-slide="40">
+      <div class="content center">
+        <h1 class="rise">감사합니다</h1>
+      </div>
+    </section>
+
+    <div class="progress"><span id="progress"></span></div>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
