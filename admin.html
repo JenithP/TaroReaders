@@ -1623,7 +1623,8 @@ const LG_CATS = {
 const LG_METHODS = ['카드', '현금', '계좌이체'];
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
 const won = n => (n || 0).toLocaleString('ko-KR') + '원';
-const lgBlank = () => ({type: 'out', date: todayStr(), amount: '', category: '', item: '', vendor: '', method: '', memo: ''});
+const lgBlank = () => ({type: 'out', date: todayStr(), amount: '', category: '', item: '', vendor: '', method: '', memo: '',
+  paidBy: '', bank: '', account: '', holder: '', reimbursed: false});
 
 const LG = {
   items: null, loading: false, month: todayStr().slice(0, 7), typeFilter: '',
@@ -1632,6 +1633,7 @@ const LG = {
   receipt: 'none',     // none | keep(기존 유지) | new | remove
   ocr: '',             // '' | busy | 결과 안내 문구
   receipts: new Map(), // id → data URL 캐시
+  payees: new Map(),   // 이름 → {bank, account, holder} (개인 돈으로 쓴 사람의 정산 계좌)
   viewer: null,
 };
 
@@ -1639,8 +1641,12 @@ async function loadLedger() {
   if (LG.loading) return;
   LG.loading = true;
   try {
-    const snap = await getDocs(query(collection(db, 'ledger'), orderBy('date', 'desc')));
+    const [snap, ps] = await Promise.all([
+      getDocs(query(collection(db, 'ledger'), orderBy('date', 'desc'))),
+      getDocs(collection(db, 'ledgerPayees')),
+    ]);
     LG.items = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    LG.payees = new Map(ps.docs.map(d => [d.data().name || d.id, d.data()]));
   } catch (e) {
     toast('회계장부를 불러오지 못했어요: ' + (e.code || e.message));
   }
@@ -1669,7 +1675,8 @@ function renderLedger() {
       <td>${esc(x.date.slice(2).replace(/-/g, '.'))}</td>
       <td><span class="badge ${x.type === 'in' ? 'b-done' : 'b-bad'}">${x.type === 'in' ? '입금' : '출금'}</span></td>
       <td>${esc(x.category || '')}</td>
-      <td class="wrap">${esc(x.item || '')}${x.memo ? `<div class="small muted">${esc(x.memo)}</div>` : ''}</td>
+      <td class="wrap">${esc(x.item || '')}${x.memo ? `<div class="small muted">${esc(x.memo)}</div>` : ''}
+        ${x.paidBy ? `<div><span class="badge ${x.reimbursedAt ? 'b-done' : 'b-before'}">${esc(x.paidBy)} 개인 돈 · ${x.reimbursedAt ? '정산 완료' : '정산 대기'}</span></div>` : ''}</td>
       <td>${esc(x.vendor || '')}</td>
       <td class="muted">${esc(x.method || '')}</td>
       <td class="num ${x.type === 'in' ? 'lg-in' : 'lg-out'}">${x.type === 'in' ? '+' : '−'}${won(x.amount)}</td>
@@ -1678,6 +1685,7 @@ function renderLedger() {
 
   return `
     <div class="page-title">회계장부 <span class="sub">영수증 사진만 올려도 날짜·금액·거래처를 AI가 읽어 채워요 · 저장 전에 꼭 확인</span></div>
+    ${renderReimburse()}
     ${renderLedgerForm()}
 
     <div class="toolbar">
@@ -1744,6 +1752,16 @@ function renderLedgerForm() {
         <div class="field"><label>내용</label><input type="text" class="inp" data-lg-f="item" maxlength="40" placeholder="예: 10월 세미나 다과" value="${esc(f.item)}"></div>
         <div class="field"><label>${f.type === 'in' ? '보낸 사람' : '거래처'}</label><input type="text" class="inp" data-lg-f="vendor" maxlength="40" value="${esc(f.vendor)}"></div>
       </div>
+      ${f.type === 'out' ? `<div class="grid3">
+        <div class="field"><label>누구 돈으로 냈나요</label><input type="text" class="inp" data-lg-f="paidBy" list="lg-payers" maxlength="20" placeholder="비우면 공용 돈 (정산 없음)" value="${esc(f.paidBy)}">
+          <datalist id="lg-payers">${lgPayerNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+        ${f.paidBy.trim() ? `
+        <div class="field"><label>돌려줄 은행</label><input type="text" class="inp" data-lg-f="bank" maxlength="20" placeholder="예: 국민" value="${esc(f.bank)}"></div>
+        <div class="field"><label>계좌번호</label><input type="text" inputmode="numeric" class="inp" data-lg-f="account" maxlength="30" value="${esc(f.account)}"></div>
+        <div class="field"><label>예금주</label><input type="text" class="inp" data-lg-f="holder" maxlength="20" placeholder="${esc(f.paidBy)}" value="${esc(f.holder)}"></div>` : ''}
+      </div>
+      ${f.paidBy.trim() ? `<label class="role-toggle" style="margin-bottom:12px"><input type="checkbox" data-lg-reimbursed ${f.reimbursed ? 'checked' : ''}> 이미 돌려줬어요 (정산 완료)</label>
+        <div class="hint" style="margin:-8px 0 12px">계좌는 이름별로 기억해 두었다가 다음에 자동으로 채워요</div>` : ''}` : ''}
       <div class="field"><label>메모</label><input type="text" class="inp" data-lg-f="memo" maxlength="200" value="${esc(f.memo)}"></div>
       <div class="btn-row" style="justify-content:space-between">
         <div>${LG.editId ? '<button class="btn danger" data-lg-del>삭제</button>' : ''}</div>
@@ -1817,6 +1835,39 @@ async function getReceipt(id) {
   return LG.receipts.get(id);
 }
 
+/* ── 개인 돈 정산: 출금을 누가 자기 돈으로 냈는지 적어 두고, 사람별로 모아서 돌려준다 ── */
+const payeeId = name => name.replace(/\//g, '·');
+const lgPayee = name => {
+  const p = (name && LG.payees.get(name.trim())) || {};
+  return {bank: p.bank || '', account: p.account || '', holder: p.holder || ''};
+};
+const lgPayerNames = () => [...new Set([...LG.payees.keys(), ...S.users.map(u => u.name), ...LG.items.map(x => x.paidBy)].filter(Boolean))];
+const lgPending = () => LG.items.filter(x => x.type === 'out' && x.paidBy && !x.reimbursedAt);
+
+function renderReimburse() {
+  const groups = new Map();
+  lgPending().forEach(x => { if (!groups.has(x.paidBy)) groups.set(x.paidBy, []); groups.get(x.paidBy).push(x); });
+  if (!groups.size) return '';
+  const cards = [...groups].map(([name, list]) => {
+    const total = list.reduce((a, x) => a + x.amount, 0), p = lgPayee(name);
+    const acct = p.account ? `${esc(p.bank)} ${esc(p.account)} <span class="muted">(${esc(p.holder || name)})</span>` : '<span style="color:var(--warn)">계좌 미등록 — 내역을 열어 계좌를 적어주세요</span>';
+    return `<div class="item" data-lg-payer="${esc(name)}">
+      <div class="top"><b>${esc(name)}</b><span class="v lg-out">${won(total)}</span></div>
+      <div class="small" style="margin-bottom:8px">${acct}</div>
+      <div class="btn-row" style="margin-bottom:6px">
+        ${p.account ? '<button class="btn sm" data-lg-copy="acct">계좌 복사</button>' : ''}
+        <button class="btn sm" data-lg-copy="amount">금액 복사</button>
+        <button class="btn sm primary" data-lg-paid>송금 완료로 표시</button>
+      </div>
+      <details class="small muted"><summary style="cursor:pointer">${list.length}건 보기</summary>
+        ${list.sort(lgSort).map(x => `<div>${esc(x.date.slice(5).replace('-', '/'))} ${esc(x.item || x.category || '')} · ${won(x.amount)}</div>`).join('')}
+      </details>
+    </div>`;
+  }).join('');
+  return `<div class="panel"><h3>돌려줄 돈 <span class="muted small" style="font-weight:400">개인 돈으로 낸 출금 중 아직 정산 안 된 것 · 전체 기간</span></h3>
+    <div class="gng">${cards}</div></div>`;
+}
+
 function lgReset() {
   Object.assign(LG, {form: lgBlank(), editId: null, dirty: false, image: null, receipt: 'none', ocr: ''});
 }
@@ -1824,9 +1875,9 @@ function lgReset() {
 function lgCsv() {
   const list = LG.items.filter(x => !LG.month || x.date.startsWith(LG.month)).sort((a, b) => lgSort(b, a));
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const lines = [['날짜', '구분', '분류', '내용', '거래처', '결제수단', '입금', '출금', '메모', '영수증'].join(',')];
+  const lines = [['날짜', '구분', '분류', '내용', '거래처', '결제수단', '입금', '출금', '메모', '영수증', '개인 지출자', '정산'].join(',')];
   list.forEach(x => lines.push([x.date, x.type === 'in' ? '입금' : '출금', x.category, x.item, x.vendor, x.method,
-    x.type === 'in' ? x.amount : '', x.type === 'out' ? x.amount : '', x.memo, x.hasReceipt ? 'O' : ''].map(q).join(',')));
+    x.type === 'in' ? x.amount : '', x.type === 'out' ? x.amount : '', x.memo, x.hasReceipt ? 'O' : '', x.paidBy || '', x.paidBy ? (x.reimbursedAt ? '완료' : '대기') : ''].map(q).join(',')));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\r\n')], {type: 'text/csv'}));
   a.download = `별빛타로_회계장부_${LG.month || '전체'}.csv`;
@@ -1843,7 +1894,14 @@ document.addEventListener('change', async e => {
   if (S.tab !== 'ledger' || !LG.items) return;
   const t = e.target;
   if (t.id === 'lg-month') { LG.month = t.value; render(); return; }
+  if (t.dataset.lgF === 'paidBy') {
+    // 아는 이름이면 계좌를 채우고, 칸이 새로 나타나도록 다시 그린다
+    const f = LG.form; f.paidBy = t.value; LG.dirty = true;
+    if (LG.payees.has(f.paidBy.trim())) Object.assign(f, lgPayee(f.paidBy));
+    render(); return;
+  }
   if (t.dataset.lgF) { LG.form[t.dataset.lgF] = t.value; LG.dirty = true; return; }
+  if (t.dataset.lgReimbursed !== undefined) { LG.form.reimbursed = t.checked; LG.dirty = true; return; }
   if (t.id === 'lg-file' && t.files[0]) {
     try {
       LG.image = await shrinkImage(t.files[0]);
@@ -1878,6 +1936,31 @@ document.addEventListener('click', async e => {
   const tf = t.closest('[data-lg-type]');
   if (tf) { LG.typeFilter = tf.dataset.lgType; render(); return; }
   if (t.closest('[data-lg-csv]')) { lgCsv(); return; }
+  const payer = t.closest('[data-lg-payer]');
+  if (payer) {
+    const name = payer.dataset.lgPayer, list = lgPending().filter(x => x.paidBy === name);
+    const total = list.reduce((a, x) => a + x.amount, 0), p = lgPayee(name);
+    const cp = t.closest('[data-lg-copy]');
+    if (cp) {
+      const text = cp.dataset.lgCopy === 'acct' ? `${p.bank} ${p.account} ${p.holder || name}`.trim() : String(total);
+      try { await navigator.clipboard.writeText(text); toast(`복사했어요: ${text}`); }
+      catch { prompt('복사해서 쓰세요', text); }
+      return;
+    }
+    if (t.closest('[data-lg-paid]')) {
+      if (!confirm(`${name}님에게 ${won(total)} (${list.length}건) 보냈나요?\n정산 완료로 표시해요.`)) return;
+      try {
+        const b = writeBatch(db);
+        list.forEach(x => b.update(doc(db, 'ledger', x.id), {reimbursedAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: S.me.name}));
+        await b.commit();
+        const now = Timestamp.now();
+        list.forEach(x => { x.reimbursedAt = now; });
+        toast(`${name}님 정산 완료로 표시했어요`); render();
+      } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }
+      return;
+    }
+    return;
+  }
   const st = t.closest('[data-lg-settype]');
   if (st) {
     LG.form.type = st.dataset.lgSettype;
@@ -1897,7 +1980,8 @@ document.addEventListener('click', async e => {
     lgReset();
     LG.editId = x.id;
     LG.form = {type: x.type, date: x.date, amount: String(x.amount), category: x.category || '', item: x.item || '',
-      vendor: x.vendor || '', method: x.method || '', memo: x.memo || ''};
+      vendor: x.vendor || '', method: x.method || '', memo: x.memo || '',
+      paidBy: x.paidBy || '', ...lgPayee(x.paidBy), reimbursed: !!x.reimbursedAt};
     LG.receipt = x.hasReceipt ? 'keep' : 'none';
     render();
     window.scrollTo({top: 0, behavior: 'smooth'});
@@ -1924,9 +2008,15 @@ document.addEventListener('click', async e => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date)) { toast('날짜를 골라주세요'); return; }
     const id = LG.editId || doc(collection(db, 'ledger')).id;
     const prev = LG.items.find(i => i.id === id);
+    const paidBy = f.type === 'out' ? f.paidBy.trim() : '';
+    const payee = paidBy && {name: paidBy, bank: f.bank.trim(), account: f.account.trim(), holder: f.holder.trim()};
+    const old = paidBy && lgPayee(paidBy);
+    const payeeChanged = payee && (payee.bank || payee.account) &&
+      ['bank', 'account', 'holder'].some(k => payee[k] !== old[k]);
     const data = {
       type: f.type, date: f.date, amount, hasReceipt: LG.receipt === 'new' || LG.receipt === 'keep',
       ...Object.fromEntries(['category', 'item', 'vendor', 'method', 'memo'].map(k => [k, String(f[k] || '').trim()])),
+      paidBy, reimbursedAt: paidBy && f.reimbursed ? (prev && prev.reimbursedAt) || serverTimestamp() : null,
       updatedAt: serverTimestamp(), updatedBy: S.me.name,
       ...(prev ? {} : {createdAt: serverTimestamp(), createdBy: S.me.name}),
     };
@@ -1935,11 +2025,14 @@ document.addEventListener('click', async e => {
       b.set(doc(db, 'ledger', id), data, {merge: true});
       if (LG.receipt === 'new') b.set(doc(db, 'ledgerReceipts', id), {image: LG.image, createdAt: serverTimestamp()});
       if (LG.receipt === 'remove') b.delete(doc(db, 'ledgerReceipts', id));
+      if (payeeChanged) b.set(doc(db, 'ledgerPayees', payeeId(paidBy)), {...payee, updatedAt: serverTimestamp()});
       await b.commit();
+      if (payeeChanged) LG.payees.set(paidBy, payee);
       if (LG.receipt === 'new') LG.receipts.set(id, LG.image);
       if (LG.receipt === 'remove') LG.receipts.delete(id);
       LG.items = [...LG.items.filter(i => i.id !== id),
-        {...prev, id, ...data, updatedAt: Timestamp.now(), createdAt: prev ? prev.createdAt : Timestamp.now()}];
+        {...prev, id, ...data, updatedAt: Timestamp.now(), createdAt: prev ? prev.createdAt : Timestamp.now(),
+          reimbursedAt: IS_NOW(data.reimbursedAt) ? Timestamp.now() : data.reimbursedAt}];
       if (LG.month && !f.date.startsWith(LG.month)) LG.month = f.date.slice(0, 7);
       lgReset(); toast(prev ? '수정했어요' : '저장했어요'); render();
     } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }

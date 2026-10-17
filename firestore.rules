@@ -151,6 +151,10 @@ service cloud.firestore {
     match /ledgerReceipts/{id} {
       allow read, write: if isAdmin();
     }
+    // 개인 돈으로 낸 사람의 정산 계좌 (이름 = 문서 ID)
+    match /ledgerPayees/{name} {
+      allow read, write: if isAdmin();
+    }
 
     // ── 인스타그램 자동응답 (쓰기는 서버 Admin SDK, 관리자 페이지는 아래만) ──
     // ig_config/token (액세스 토큰)은 여기 없으므로 브라우저에서 절대 읽을 수 없다
