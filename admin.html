@@ -147,6 +147,16 @@ textarea{width:100%;min-height:84px;padding:10px;border:1px solid var(--line);bo
 .ig-preview{white-space:pre-wrap;background:#fbfaff;border:1px dashed var(--line);border-radius:8px;padding:10px 12px;font-size:.84rem;line-height:1.7;margin-top:6px;word-break:break-all}
 .hint{font-size:.76rem;color:var(--muted);margin-top:4px}
 
+/* ── 회계장부 ── */
+.lg-form .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0 10px}
+.lg-drop{border:1.5px dashed var(--line);border-radius:10px;padding:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:#fbfaff;margin-bottom:12px}
+.lg-drop img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in}
+.lg-in{color:var(--ok);font-weight:600}
+.lg-out{color:var(--bad);font-weight:600}
+td.num,th.num{text-align:right}
+.lg-viewer{position:fixed;inset:0;background:rgba(20,10,40,.7);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+.lg-viewer img{max-width:100%;max-height:100%;border-radius:8px;background:#fff}
+
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#221a33;color:#fff;padding:10px 18px;border-radius:8px;font-size:.86rem;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
 
@@ -502,7 +512,7 @@ async function saveCustomer(id, patch, msg = '저장했어요') {
 function tabs() {
   const me = S.me, t = [];
   t.push(['customers', me.isAdmin ? '고객' : me.isCaller && !me.isLeader ? '내 콜링' : me.isLeader && !me.isCaller ? '내 고객' : '내 담당']);
-  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '역할 등록'], ['instagram', '인스타그램']);
+  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '역할 등록'], ['instagram', '인스타그램'], ['ledger', '회계장부']);
   return t;
 }
 
@@ -521,6 +531,7 @@ function render() {
   if (S.tab === 'readings') main.innerHTML = renderReadings();
   if (S.tab === 'staff') main.innerHTML = renderStaff();
   if (S.tab === 'instagram') main.innerHTML = renderInstagram();
+  if (S.tab === 'ledger') main.innerHTML = renderLedger();
   renderDrawer();
 }
 
@@ -1597,7 +1608,343 @@ document.addEventListener('click', async e => {
     } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }
   }
 });
-window.addEventListener('beforeunload', e => { if (IG.dirty) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (IG.dirty || LG.dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ═══════════════════════════════════════
+   회계장부 (관리자만)
+   ledger/{id}         : 입출금 한 건
+   ledgerReceipts/{id} : 영수증 사진 (줄인 JPEG data URL, 같은 ID). 목록을 가볍게 하려고 따로 둔다
+   사진을 올리면 api/receipt 가 날짜·금액·거래처를 읽어 칸을 채운다 → 확인 후 저장
+═══════════════════════════════════════ */
+const LG_CATS = {
+  in: ['세미나 참가비', '상담료', '굿즈 판매', '후원·지원금', '기타 수입'],
+  out: ['장소 대관', '다과·식비', '광고·마케팅', '인쇄·굿즈 제작', '교통비', '소모품', '소프트웨어·구독', '인건비', '기타 지출'],
+};
+const LG_METHODS = ['카드', '현금', '계좌이체'];
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const won = n => (n || 0).toLocaleString('ko-KR') + '원';
+const lgBlank = () => ({type: 'out', date: todayStr(), amount: '', category: '', item: '', vendor: '', method: '', memo: ''});
+
+const LG = {
+  items: null, loading: false, month: todayStr().slice(0, 7), typeFilter: '',
+  form: lgBlank(), editId: null, dirty: false,
+  image: null,         // 이번에 새로 고른 사진 (data URL)
+  receipt: 'none',     // none | keep(기존 유지) | new | remove
+  ocr: '',             // '' | busy | 결과 안내 문구
+  receipts: new Map(), // id → data URL 캐시
+  viewer: null,
+};
+
+async function loadLedger() {
+  if (LG.loading) return;
+  LG.loading = true;
+  try {
+    const snap = await getDocs(query(collection(db, 'ledger'), orderBy('date', 'desc')));
+    LG.items = snap.docs.map(d => ({id: d.id, ...d.data()}));
+  } catch (e) {
+    toast('회계장부를 불러오지 못했어요: ' + (e.code || e.message));
+  }
+  LG.loading = false;
+  if (S.tab === 'ledger' && LG.items) render();
+}
+
+const lgSort = (a, b) => b.date.localeCompare(a.date) || ms(b.createdAt) - ms(a.createdAt);
+
+function renderLedger() {
+  if (!LG.items) { loadLedger(); return '<div class="empty">불러오는 중…</div>'; }
+  const inMonth = LG.items.filter(x => !LG.month || x.date.startsWith(LG.month)).sort(lgSort);
+  const shown = inMonth.filter(x => !LG.typeFilter || x.type === LG.typeFilter);
+  const sum = (arr, t) => arr.filter(x => x.type === t).reduce((a, x) => a + (x.amount || 0), 0);
+  const mIn = sum(inMonth, 'in'), mOut = sum(inMonth, 'out');
+  const balance = sum(LG.items, 'in') - sum(LG.items, 'out');
+  const period = LG.month ? `${+LG.month.slice(5)}월` : '전체 기간';
+  const signed = n => (n < 0 ? '−' : '') + won(Math.abs(n));
+
+  const byCat = {};
+  inMonth.filter(x => x.type === 'out').forEach(x => { const k = x.category || '미분류'; byCat[k] = (byCat[k] || 0) + x.amount; });
+  const catRows = Object.entries(byCat).sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${won(v)}</td><td class="num muted">${pct(v, mOut)}%</td></tr>`).join('');
+
+  const rows = shown.map(x => `<tr data-lg-edit="${x.id}" ${x.id === LG.editId ? 'style="background:var(--brand-soft)"' : ''}>
+      <td>${esc(x.date.slice(2).replace(/-/g, '.'))}</td>
+      <td><span class="badge ${x.type === 'in' ? 'b-done' : 'b-bad'}">${x.type === 'in' ? '입금' : '출금'}</span></td>
+      <td>${esc(x.category || '')}</td>
+      <td class="wrap">${esc(x.item || '')}${x.memo ? `<div class="small muted">${esc(x.memo)}</div>` : ''}</td>
+      <td>${esc(x.vendor || '')}</td>
+      <td class="muted">${esc(x.method || '')}</td>
+      <td class="num ${x.type === 'in' ? 'lg-in' : 'lg-out'}">${x.type === 'in' ? '+' : '−'}${won(x.amount)}</td>
+      <td>${x.hasReceipt ? `<button class="btn sm" data-lg-view="${x.id}">🧾 보기</button>` : ''}</td>
+    </tr>`).join('');
+
+  return `
+    <div class="page-title">회계장부 <span class="sub">영수증 사진만 올려도 날짜·금액·거래처를 AI가 읽어 채워요 · 저장 전에 꼭 확인</span></div>
+    ${renderLedgerForm()}
+
+    <div class="toolbar">
+      <button class="btn sm" data-lg-month="-1">◀</button>
+      <input type="month" class="inp" id="lg-month" value="${esc(LG.month)}" style="width:auto">
+      <button class="btn sm" data-lg-month="1">▶</button>
+      <button class="chip ${LG.month ? '' : 'on'}" data-lg-month="all">전체 기간</button>
+      <div class="chips" style="margin-left:8px">
+        ${[['', '전체'], ['in', '입금'], ['out', '출금']].map(([k, l]) => `<button class="chip ${LG.typeFilter === k ? 'on' : ''}" data-lg-type="${k}">${l}</button>`).join('')}
+      </div>
+      <button class="btn sm" data-lg-csv style="margin-left:auto">엑셀(CSV) 내려받기</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="n lg-in">${won(mIn)}</div><div class="l">${period} 입금</div></div>
+      <div class="stat"><div class="n lg-out">${won(mOut)}</div><div class="l">${period} 출금</div></div>
+      <div class="stat"><div class="n">${signed(mIn - mOut)}</div><div class="l">${period} 수지</div></div>
+      <div class="stat"><div class="n">${signed(balance)}</div><div class="l">누적 잔액 (전체 입금 − 출금)</div></div>
+    </div>
+
+    ${rows ? `<div class="table-wrap" style="margin-bottom:16px"><table>
+      <thead><tr><th>날짜</th><th>구분</th><th>분류</th><th>내용</th><th>거래처</th><th>결제</th><th class="num">금액</th><th>영수증</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>` : `<div class="empty">${period}에 적힌 내역이 없어요</div>`}
+
+    ${catRows ? `<div class="panel"><h3>${period} 출금 분류별</h3><div class="table-wrap"><table>
+      <thead><tr><th>분류</th><th class="num">금액</th><th class="num">비율</th></tr></thead><tbody>${catRows}</tbody></table></div></div>` : ''}
+    ${LG.viewer ? `<div class="lg-viewer" data-lg-close>${LG.viewer === 'loading' ? '<div style="color:#fff">불러오는 중…</div>' : `<img src="${LG.viewer}" alt="영수증">`}</div>` : ''}`;
+}
+
+function renderLedgerForm() {
+  const f = LG.form, cats = LG_CATS[f.type];
+  const preview = LG.receipt === 'new' ? LG.image : LG.receipt === 'keep' ? LG.receipts.get(LG.editId) : null;
+  const hasPic = LG.receipt === 'new' || LG.receipt === 'keep';
+  const ocr = LG.ocr === 'busy' ? '<span class="badge b-before">🔮 영수증 읽는 중…</span>'
+    : LG.ocr ? `<span class="small">${LG.ocr}</span>` : '';
+  return `
+    <div class="panel lg-form">
+      <h3>${LG.editId ? '내역 수정' : '새 내역 적기'}</h3>
+      <div class="lg-drop">
+        ${hasPic ? (preview ? `<img src="${preview}" data-lg-zoom alt="영수증">` : '<span class="muted small">🧾 영수증 있음</span>') : ''}
+        <div style="flex:1;min-width:200px">
+          <label class="btn primary" style="display:inline-block">📷 ${hasPic ? '사진 바꾸기' : '영수증 사진 올리기'}
+            <input type="file" accept="image/*" id="lg-file" hidden></label>
+          ${hasPic ? '<button class="btn sm danger" data-lg-rmpic style="margin-left:6px">사진 빼기</button>' : ''}
+          ${LG.receipt === 'new' && LG.ocr !== 'busy' ? '<button class="btn sm" data-lg-ocr style="margin-left:6px">다시 읽기</button>' : ''}
+          <div style="margin-top:6px">${ocr || '<span class="hint">사진만 올리면 아래 칸을 자동으로 채워요. 사진 없이 직접 적어도 돼요</span>'}</div>
+        </div>
+      </div>
+      <div class="field"><div class="seg">
+        <button data-lg-settype="out" class="${f.type === 'out' ? 'on' : ''}">출금 (지출)</button>
+        <button data-lg-settype="in" class="${f.type === 'in' ? 'on' : ''}">입금 (수입)</button>
+      </div></div>
+      <div class="grid3">
+        <div class="field"><label>날짜</label><input type="date" class="inp" data-lg-f="date" value="${esc(f.date)}"></div>
+        <div class="field"><label>금액 (원)</label><input type="text" inputmode="numeric" class="inp" data-lg-f="amount" placeholder="예: 35000" value="${esc(f.amount)}"></div>
+        <div class="field"><label>분류</label><select class="inp" data-lg-f="category">
+          <option value="">선택</option>
+          ${[...cats, ...(f.category && !cats.includes(f.category) ? [f.category] : [])].map(c => `<option ${c === f.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+        </select></div>
+        <div class="field"><label>결제 수단</label><select class="inp" data-lg-f="method">
+          <option value="">선택</option>
+          ${LG_METHODS.map(c => `<option ${c === f.method ? 'selected' : ''}>${c}</option>`).join('')}
+        </select></div>
+        <div class="field"><label>내용</label><input type="text" class="inp" data-lg-f="item" maxlength="40" placeholder="예: 10월 세미나 다과" value="${esc(f.item)}"></div>
+        <div class="field"><label>${f.type === 'in' ? '보낸 사람' : '거래처'}</label><input type="text" class="inp" data-lg-f="vendor" maxlength="40" value="${esc(f.vendor)}"></div>
+      </div>
+      <div class="field"><label>메모</label><input type="text" class="inp" data-lg-f="memo" maxlength="200" value="${esc(f.memo)}"></div>
+      <div class="btn-row" style="justify-content:space-between">
+        <div>${LG.editId ? '<button class="btn danger" data-lg-del>삭제</button>' : ''}</div>
+        <div class="btn-row">
+          ${LG.editId || LG.dirty ? '<button class="btn" data-lg-cancel>취소</button>' : ''}
+          <button class="btn primary" data-lg-save ${LG.ocr === 'busy' ? 'disabled' : ''}>${LG.editId ? '수정 저장' : '저장'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// 휴대폰 사진(수 MB)을 Firestore 문서 한 개(1MB)에 들어가게 줄인다
+async function shrinkImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, bad) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => bad(new Error('사진을 열 수 없어요 (HEIC 사진은 JPG로 바꿔 올려주세요)'));
+      i.src = url;
+    });
+    for (const [max, q] of [[1600, .82], [1280, .75], [1024, .7], [800, .65]]) {
+      const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      const d = c.toDataURL('image/jpeg', q);
+      if (d.length < 750000) return d;
+    }
+    throw new Error('사진이 너무 커요');
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function readReceipt() {
+  const image = LG.image;
+  LG.ocr = 'busy'; render();
+  try {
+    const resp = await fetch('/api/receipt', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + await auth.currentUser.getIdToken()},
+      body: JSON.stringify({image, inCategories: LG_CATS.in, outCategories: LG_CATS.out}),
+    });
+    const r = await resp.json().catch(() => ({}));
+    if (LG.image !== image) return; // 그 사이 사진을 바꿨다
+    if (!resp.ok) throw new Error(r.error || resp.status);
+    const f = LG.form;
+    if (!r.amount) { LG.ocr = '<b style="color:var(--warn)">금액을 찾지 못했어요. 직접 적어주세요</b>'; return; }
+    f.type = r.type; f.amount = String(r.amount);
+    if (r.date) f.date = r.date;
+    if (r.category) f.category = r.category;
+    else if (!LG_CATS[f.type].includes(f.category)) f.category = '';
+    for (const k of ['vendor', 'item', 'method']) if (r[k]) f[k] = r[k];
+    LG.dirty = true;
+    LG.ocr = r.confidence === 'high'
+      ? `✅ <b>${won(r.amount)}</b>${r.vendor ? ` · ${esc(r.vendor)}` : ''} 로 읽었어요. 확인 후 저장하세요`
+      : `<b style="color:var(--warn)">⚠️ ${won(r.amount)}로 읽었지만 흐릿해요. 금액을 꼭 확인해주세요</b>`;
+  } catch (e) {
+    if (LG.image === image) LG.ocr = `<b style="color:var(--bad)">영수증을 읽지 못했어요 (${esc(e.message)}). 직접 적어주세요</b>`;
+  } finally {
+    if (S.tab === 'ledger') render();
+  }
+}
+
+async function getReceipt(id) {
+  if (!LG.receipts.has(id)) {
+    const snap = await getDoc(doc(db, 'ledgerReceipts', id));
+    LG.receipts.set(id, snap.exists() ? snap.data().image : null);
+  }
+  return LG.receipts.get(id);
+}
+
+function lgReset() {
+  Object.assign(LG, {form: lgBlank(), editId: null, dirty: false, image: null, receipt: 'none', ocr: ''});
+}
+
+function lgCsv() {
+  const list = LG.items.filter(x => !LG.month || x.date.startsWith(LG.month)).sort((a, b) => lgSort(b, a));
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [['날짜', '구분', '분류', '내용', '거래처', '결제수단', '입금', '출금', '메모', '영수증'].join(',')];
+  list.forEach(x => lines.push([x.date, x.type === 'in' ? '입금' : '출금', x.category, x.item, x.vendor, x.method,
+    x.type === 'in' ? x.amount : '', x.type === 'out' ? x.amount : '', x.memo, x.hasReceipt ? 'O' : ''].map(q).join(',')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\r\n')], {type: 'text/csv'}));
+  a.download = `별빛타로_회계장부_${LG.month || '전체'}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+document.addEventListener('input', e => {
+  if (S.tab !== 'ledger' || !LG.items) return;
+  const t = e.target;
+  if (t.dataset.lgF) { LG.form[t.dataset.lgF] = t.value; LG.dirty = true; }
+});
+document.addEventListener('change', async e => {
+  if (S.tab !== 'ledger' || !LG.items) return;
+  const t = e.target;
+  if (t.id === 'lg-month') { LG.month = t.value; render(); return; }
+  if (t.dataset.lgF) { LG.form[t.dataset.lgF] = t.value; LG.dirty = true; return; }
+  if (t.id === 'lg-file' && t.files[0]) {
+    try {
+      LG.image = await shrinkImage(t.files[0]);
+      LG.receipt = 'new'; LG.dirty = true;
+      readReceipt();
+    } catch (err) { toast(err.message); }
+  }
+});
+document.addEventListener('click', async e => {
+  if (S.tab !== 'ledger' || !LG.items) return;
+  const t = e.target;
+  if (t.closest('[data-lg-close]')) { LG.viewer = null; render(); return; }
+  const view = t.closest('[data-lg-view]');
+  if (view) {
+    LG.viewer = 'loading'; render();
+    try { LG.viewer = await getReceipt(view.dataset.lgView); if (!LG.viewer) toast('영수증 사진이 없어요'); }
+    catch (err) { LG.viewer = null; toast('불러오기 실패: ' + (err.code || err.message)); }
+    render(); return;
+  }
+  if (t.closest('[data-lg-zoom]')) { LG.viewer = t.closest('[data-lg-zoom]').src; render(); return; }
+  const mo = t.closest('[data-lg-month]');
+  if (mo) {
+    const v = mo.dataset.lgMonth;
+    if (v === 'all') LG.month = '';
+    else {
+      const [y, m] = (LG.month || todayStr().slice(0, 7)).split('-').map(Number);
+      const d = new Date(y, m - 1 + +v, 1);
+      LG.month = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+    }
+    render(); return;
+  }
+  const tf = t.closest('[data-lg-type]');
+  if (tf) { LG.typeFilter = tf.dataset.lgType; render(); return; }
+  if (t.closest('[data-lg-csv]')) { lgCsv(); return; }
+  const st = t.closest('[data-lg-settype]');
+  if (st) {
+    LG.form.type = st.dataset.lgSettype;
+    if (!LG_CATS[LG.form.type].includes(LG.form.category)) LG.form.category = '';
+    LG.dirty = true; render(); return;
+  }
+  if (t.closest('[data-lg-ocr]')) { readReceipt(); return; }
+  if (t.closest('[data-lg-rmpic]')) {
+    LG.receipt = LG.editId && LG.items.find(x => x.id === LG.editId)?.hasReceipt ? 'remove' : 'none';
+    LG.image = null; LG.ocr = ''; LG.dirty = true; render(); return;
+  }
+  if (t.closest('[data-lg-cancel]')) { lgReset(); render(); return; }
+  const ed = t.closest('[data-lg-edit]');
+  if (ed) {
+    if (LG.dirty && !confirm('적던 내용을 버리고 이 내역을 열까요?')) return;
+    const x = LG.items.find(i => i.id === ed.dataset.lgEdit);
+    lgReset();
+    LG.editId = x.id;
+    LG.form = {type: x.type, date: x.date, amount: String(x.amount), category: x.category || '', item: x.item || '',
+      vendor: x.vendor || '', method: x.method || '', memo: x.memo || ''};
+    LG.receipt = x.hasReceipt ? 'keep' : 'none';
+    render();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+    if (x.hasReceipt) getReceipt(x.id).then(() => { if (LG.editId === x.id) render(); }).catch(() => {});
+    return;
+  }
+  if (t.closest('[data-lg-del]')) {
+    const x = LG.items.find(i => i.id === LG.editId);
+    if (!confirm(`${x.date} ${x.item || x.category || ''} ${won(x.amount)} 내역을 삭제할까요?`)) return;
+    try {
+      const b = writeBatch(db);
+      b.delete(doc(db, 'ledger', x.id));
+      if (x.hasReceipt) b.delete(doc(db, 'ledgerReceipts', x.id));
+      await b.commit();
+      LG.items = LG.items.filter(i => i.id !== x.id);
+      LG.receipts.delete(x.id);
+      lgReset(); toast('삭제했어요'); render();
+    } catch (err) { toast('삭제 실패: ' + (err.code || err.message)); }
+    return;
+  }
+  if (t.closest('[data-lg-save]')) {
+    const f = LG.form, amount = parseInt(String(f.amount).replace(/[^\d]/g, ''), 10);
+    if (!amount) { toast('금액을 적어주세요'); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date)) { toast('날짜를 골라주세요'); return; }
+    const id = LG.editId || doc(collection(db, 'ledger')).id;
+    const prev = LG.items.find(i => i.id === id);
+    const data = {
+      type: f.type, date: f.date, amount, hasReceipt: LG.receipt === 'new' || LG.receipt === 'keep',
+      ...Object.fromEntries(['category', 'item', 'vendor', 'method', 'memo'].map(k => [k, String(f[k] || '').trim()])),
+      updatedAt: serverTimestamp(), updatedBy: S.me.name,
+      ...(prev ? {} : {createdAt: serverTimestamp(), createdBy: S.me.name}),
+    };
+    try {
+      const b = writeBatch(db);
+      b.set(doc(db, 'ledger', id), data, {merge: true});
+      if (LG.receipt === 'new') b.set(doc(db, 'ledgerReceipts', id), {image: LG.image, createdAt: serverTimestamp()});
+      if (LG.receipt === 'remove') b.delete(doc(db, 'ledgerReceipts', id));
+      await b.commit();
+      if (LG.receipt === 'new') LG.receipts.set(id, LG.image);
+      if (LG.receipt === 'remove') LG.receipts.delete(id);
+      LG.items = [...LG.items.filter(i => i.id !== id),
+        {...prev, id, ...data, updatedAt: Timestamp.now(), createdAt: prev ? prev.createdAt : Timestamp.now()}];
+      if (LG.month && !f.date.startsWith(LG.month)) LG.month = f.date.slice(0, 7);
+      lgReset(); toast(prev ? '수정했어요' : '저장했어요'); render();
+    } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }
+  }
+});
 </script>
 </body>
 </html>
