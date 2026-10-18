@@ -156,6 +156,18 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // ── 조직도 (관리자만, 연락처가 들어 있다). 상자 하나 = 문서 하나, parentId 로 나무가 된다 ──
+    match /orgChart/{id} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.parentId is string
+        && request.resource.data.order is int
+        && request.resource.data.get('name', '').size() <= 30
+        && request.resource.data.get('title', '').size() <= 30
+        && request.resource.data.get('phone', '').size() <= 20
+        && request.resource.data.get('note', '').size() <= 200;
+    }
+
     // ── 인스타그램 자동응답 (쓰기는 서버 Admin SDK, 관리자 페이지는 아래만) ──
     // ig_config/token (액세스 토큰)은 여기 없으므로 브라우저에서 절대 읽을 수 없다
     match /ig_config/settings {

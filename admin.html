@@ -157,6 +157,41 @@ td.num,th.num{text-align:right}
 .lg-viewer{position:fixed;inset:0;background:rgba(20,10,40,.7);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
 .lg-viewer img{max-width:100%;max-height:100%;border-radius:8px;background:#fff}
 
+/* ── 조직도 ── */
+.og-layout{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+.og-tree{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;min-height:200px}
+.og-list{list-style:none}
+.og-list .og-list{padding-left:28px}
+.og-list li{position:relative;padding-top:6px}
+.og-list .og-list>li::before{content:'';position:absolute;left:-15px;top:0;height:27px;width:13px;border-left:1.5px solid #d6cfe3;border-bottom:1.5px solid #d6cfe3;border-bottom-left-radius:6px}
+.og-list .og-list>li:not(:last-child)::after{content:'';position:absolute;left:-15px;top:27px;bottom:0;border-left:1.5px solid #d6cfe3}
+.og-box{display:inline-flex;align-items:center;gap:8px;min-width:240px;max-width:100%;min-height:42px;padding:6px 12px 6px 6px;border:1px solid #e4dfee;border-radius:9px;background:#fff;cursor:pointer;user-select:none;vertical-align:top}
+.og-box:hover{box-shadow:0 2px 8px rgba(75,42,134,.1)}
+.og-box.on{outline:2px solid var(--brand);outline-offset:1px}
+.og-box.hit{outline:2px dashed var(--gold);outline-offset:1px}
+.og-box.drop-in{background:var(--brand-soft)!important;border-color:var(--brand)}
+.og-box.drop-before{box-shadow:0 -3px 0 var(--brand)}
+.og-box.drop-after{box-shadow:0 3px 0 var(--brand)}
+.og-box.dragging{opacity:.4}
+.og-fold{width:22px;height:22px;flex:none;border:1px solid var(--line);border-radius:5px;background:#fff;font-size:.75rem;line-height:1;color:var(--muted)}
+.og-fold.none{visibility:hidden}
+.og-main{font-weight:600;font-size:.9rem;line-height:1.3}
+.og-main .t{font-weight:400;color:var(--muted);font-size:.8rem;margin-left:4px}
+.og-sub{font-size:.74rem;color:var(--muted);line-height:1.3;margin-top:1px}
+.og-cnt{margin-left:auto;font-size:.7rem;color:var(--muted);background:#f3f0f8;border-radius:10px;padding:0 7px}
+.og-c-gold{background:#faf1dc;border-color:#ecd9a8}
+.og-c-green{background:#e9f6ee;border-color:#bfe3cc}
+.og-c-blue{background:#e9eff8;border-color:#c3d2ea}
+.og-c-rose{background:#fbe9e6;border-color:#f0c9c4}
+.og-c-gray{background:#f1eee7;border-color:#ddd7cb}
+.og-root-drop{margin-top:12px;border:1.5px dashed var(--line);border-radius:9px;padding:8px;text-align:center;font-size:.78rem;color:var(--muted)}
+.og-root-drop.drop-in{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+.og-edit{position:sticky;top:70px}
+.og-edit hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+.og-swatches{display:flex;gap:6px}
+.og-swatches button{width:28px;height:28px;border-radius:7px;border:1px solid #e4dfee;background:#fff}
+.og-swatches button.on{outline:2px solid var(--brand);outline-offset:1px}
+
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#221a33;color:#fff;padding:10px 18px;border-radius:8px;font-size:.86rem;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
 
@@ -168,6 +203,9 @@ td.num,th.num{text-align:right}
   .cards{display:block}
   .ladder{grid-template-columns:repeat(3,1fr)}
   .kv{grid-template-columns:80px 1fr}
+  .og-layout{grid-template-columns:1fr}
+  .og-edit{position:static;order:-1}
+  .og-box{min-width:200px}
 }
 </style>
 </head>
@@ -512,7 +550,7 @@ async function saveCustomer(id, patch, msg = '저장했어요') {
 function tabs() {
   const me = S.me, t = [];
   t.push(['customers', me.isAdmin ? '고객' : me.isCaller && !me.isLeader ? '내 콜링' : me.isLeader && !me.isCaller ? '내 고객' : '내 담당']);
-  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '역할 등록'], ['instagram', '인스타그램'], ['ledger', '회계장부']);
+  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '역할 등록'], ['instagram', '인스타그램'], ['ledger', '회계장부'], ['org', '조직도']);
   return t;
 }
 
@@ -532,6 +570,7 @@ function render() {
   if (S.tab === 'staff') main.innerHTML = renderStaff();
   if (S.tab === 'instagram') main.innerHTML = renderInstagram();
   if (S.tab === 'ledger') main.innerHTML = renderLedger();
+  if (S.tab === 'org') main.innerHTML = renderOrg();
   renderDrawer();
 }
 
@@ -2037,6 +2076,433 @@ document.addEventListener('click', async e => {
       lgReset(); toast(prev ? '수정했어요' : '저장했어요'); render();
     } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }
   }
+});
+
+/* ═══════════════════════════════════════
+   조직도 (관리자) — MyeongRi 조직도와 같은 구조
+   상자 하나 = orgChart 문서 하나. parentId('' = 맨 위)와 형제 순서 order 로 나무가 된다.
+   옮기기·지우기는 형제 순서까지 한 batch 로 고친다 (중간에 끊기면 순서가 어긋난다).
+═══════════════════════════════════════ */
+const OG_COLORS = {none: ['#ffffff', '#d9d3c6'], gold: ['#faf1dc', '#ecd9a8'], green: ['#e9f6ee', '#bfe3cc'],
+  blue: ['#e9eff8', '#c3d2ea'], rose: ['#fbe9e6', '#f0c9c4'], gray: ['#f1eee7', '#ddd7cb']};
+const OG_FIELDS = ['name', 'title', 'phone', 'note', 'color'];
+const ogBlank = () => ({name: '', title: '', phone: '', note: '', color: 'none', parentId: ''});
+
+const OG = {
+  nodes: null, loading: false, busy: false,
+  sel: null, form: ogBlank(), dirty: false,
+  folded: new Set(),   // 접은 상자 (이 브라우저에서만 기억)
+  search: '',
+  drag: null,          // 끌고 있는 상자 id
+};
+
+async function loadOrg() {
+  if (OG.loading) return;
+  OG.loading = true;
+  try {
+    const snap = await getDocs(collection(db, 'orgChart'));
+    OG.nodes = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    try { OG.folded = new Set(JSON.parse(localStorage.getItem('og-folded') || '[]')); } catch {}
+  } catch (e) {
+    toast('조직도를 불러오지 못했어요: ' + (e.code || e.message));
+  }
+  OG.loading = false;
+  if (S.tab === 'org' && OG.nodes) render();
+}
+const ogSaveFolded = () => { try { localStorage.setItem('og-folded', JSON.stringify([...OG.folded])); } catch {} };
+
+const ogNode = id => OG.nodes.find(n => n.id === id);
+const ogKids = pid => OG.nodes.filter(n => (n.parentId || '') === pid).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+const ogLabel = n => [n.name, n.title].filter(Boolean).join(' · ') || '(빈 상자)';
+// a 가 b 자신이거나 b 아래에 있나 — 자기 아래로 옮기면 고리가 생겨 그려지지 않는다
+function ogUnder(a, b) {
+  for (let p = a, guard = 0; p && guard < 2000; p = ogNode(p)?.parentId || '', guard++) if (p === b) return true;
+  return false;
+}
+// id 와 그 아래 전부
+function ogBranch(id) {
+  const out = [id];
+  for (let i = 0; i < out.length; i++) OG.nodes.forEach(n => { if (n.parentId === out[i]) out.push(n.id); });
+  return out;
+}
+// 나무 순서대로 펼친 목록 [{n, depth}] (skipFolded 면 접힌 가지는 뺀다)
+function ogFlat(skipFolded = false) {
+  const out = [];
+  const walk = (pid, depth) => ogKids(pid).forEach(n => {
+    out.push({n, depth});
+    if (!(skipFolded && OG.folded.has(n.id))) walk(n.id, depth + 1);
+  });
+  walk('', 0);
+  return out;
+}
+
+function ogSelect(id) {
+  const n = id && ogNode(id);
+  OG.sel = n ? id : null;
+  OG.dirty = false;
+  OG.form = n ? Object.fromEntries(Object.entries(ogBlank()).map(([k, v]) => [k, n[k] ?? v])) : ogBlank();
+}
+
+// ops: [['set'|'upd'|'del', id, data]] — 450개씩 끊어 batch 로 보내고 화면 데이터에도 반영한다
+async function ogCommit(ops, msg) {
+  if (OG.busy || !ops.length) return false;
+  OG.busy = true;
+  try {
+    for (let i = 0; i < ops.length; i += 450) {
+      const b = writeBatch(db);
+      ops.slice(i, i + 450).forEach(([t, id, data]) => {
+        const ref = doc(db, 'orgChart', id);
+        if (t === 'del') b.delete(ref); else if (t === 'set') b.set(ref, data); else b.update(ref, data);
+      });
+      await b.commit();
+    }
+    ops.forEach(([t, id, data]) => {
+      if (t === 'del') OG.nodes = OG.nodes.filter(n => n.id !== id);
+      else if (t === 'set') OG.nodes.push({id, ...data});
+      else Object.assign(ogNode(id), data);
+    });
+    if (msg) toast(msg);
+    return true;
+  } catch (e) {
+    toast('저장 실패: ' + (e.code || e.message));
+    return false;
+  } finally {
+    OG.busy = false;
+    render();
+  }
+}
+
+const ogStamp = () => ({updatedAt: Date.now(), updatedBy: S.me.name});
+
+// parentId 아래 index 자리로 옮긴다 (index 는 옮기는 상자를 뺀 형제 목록 기준)
+async function ogMove(id, parentId, index) {
+  if (parentId && ogUnder(parentId, id)) { toast('자기 아래로는 옮길 수 없어요'); return; }
+  const node = ogNode(id), from = node.parentId || '';
+  const target = ogKids(parentId).filter(n => n.id !== id);
+  target.splice(Math.max(0, Math.min(index, target.length)), 0, node);
+  const want = target.map((n, i) => [n.id, n.id === id ? {parentId, order: i} : {order: i}]);
+  if (from !== parentId) ogKids(from).filter(n => n.id !== id).forEach((n, i) => want.push([n.id, {order: i}]));
+  const ops = want.filter(([nid, d]) => Object.entries(d).some(([k, v]) => (ogNode(nid)[k] ?? '') !== v))
+    .map(([nid, d]) => ['upd', nid, nid === id ? {...d, ...ogStamp()} : d]);
+  if (!ops.length) return;
+  if (parentId) { OG.folded.delete(parentId); ogSaveFolded(); }
+  if (await ogCommit(ops, '옮겼어요') && OG.sel === id) { OG.form.parentId = parentId; render(); }
+}
+
+async function ogAdd(parentId, index = null) {
+  const sibs = ogKids(parentId);
+  if (index === null) index = sibs.length;
+  const id = doc(collection(db, 'orgChart')).id;
+  const ops = [];
+  sibs.forEach((n, i) => { const o = i < index ? i : i + 1; if (n.order !== o) ops.push(['upd', n.id, {order: o}]); });
+  ops.push(['set', id, {...ogBlank(), parentId, order: index, createdAt: Date.now(), ...ogStamp()}]);
+  if (parentId) { OG.folded.delete(parentId); ogSaveFolded(); }
+  if (await ogCommit(ops)) {
+    ogSelect(id); render();
+    $('[data-og-f=name]')?.focus();
+  }
+}
+
+async function ogDelete(id) {
+  const n = ogNode(id), ids = ogBranch(id);
+  if (!confirm(ids.length > 1 ? `「${ogLabel(n)}」와 그 아래 ${ids.length - 1}개 상자를 모두 지울까요?` : `「${ogLabel(n)}」 상자를 지울까요?`)) return;
+  const ops = ids.map(x => ['del', x]);
+  ogKids(n.parentId || '').filter(x => x.id !== id).forEach((x, i) => { if (x.order !== i) ops.push(['upd', x.id, {order: i}]); });
+  if (await ogCommit(ops, '지웠어요')) { ogSelect(null); render(); }
+}
+
+async function ogSave() {
+  const n = ogNode(OG.sel);
+  if (!n || !OG.dirty) return;
+  const data = Object.fromEntries(OG_FIELDS.map(k => [k, String(OG.form[k] || '').trim()]));
+  if (!OG_COLORS[data.color]) data.color = 'none';
+  const parentId = OG.form.parentId || '';
+  if (!await ogCommit([['upd', n.id, {...data, ...ogStamp()}]], '저장했어요')) return;
+  OG.dirty = false;
+  if (parentId !== (n.parentId || '')) await ogMove(n.id, parentId, ogKids(parentId).length);
+  render();
+}
+
+// 역할 등록 명단으로 초안 — 별빛타로 → 관리자 / 리더 / 콜러 → 사람 (여러 역할이면 가장 높은 쪽 한 곳)
+async function ogSeed() {
+  const rank = u => u.email === SUPER_ADMIN_EMAIL || u.roles?.admin ? 'admin' : u.roles?.leader ? 'leader' : u.roles?.caller ? 'caller' : '';
+  const staff = S.users.filter(rank);
+  if (!staff.length) { toast('역할이 지정된 사람이 없어요'); return; }
+  if (!confirm(`역할 등록 명단 ${staff.length}명으로 조직도 초안을 만들까요?\n만든 뒤에 자유롭게 고치고 옮길 수 있어요.`)) return;
+  const ops = [], now = Date.now();
+  const add = (parentId, order, d) => {
+    const id = doc(collection(db, 'orgChart')).id;
+    ops.push(['set', id, {...ogBlank(), ...d, parentId, order, createdAt: now, ...ogStamp()}]);
+    return id;
+  };
+  const root = add('', ogKids('').length, {title: '별빛타로', color: 'gold'});
+  [['admin', '관리자', 'blue'], ['leader', '리더', 'green'], ['caller', '콜러', 'rose']]
+    .map(([k, label, color]) => [label, color, staff.filter(u => rank(u) === k)])
+    .filter(([, , us]) => us.length)
+    .forEach(([label, color, us], gi) => {
+      const g = add(root, gi, {title: label, color});
+      us.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'))
+        .forEach((u, i) => add(g, i, {name: String(u.name || u.email).slice(0, 30), title: u.email === SUPER_ADMIN_EMAIL ? '최고 관리자' : ''}));
+    });
+  await ogCommit(ops, `상자 ${ops.length}개를 만들었어요`);
+}
+
+/* ── 내보내기: 화면에 펼쳐 둔 그대로 SVG 로 다시 그려 PNG·인쇄 (MyeongRi orgExport 와 같은 방식) ── */
+function ogSvg() {
+  const rows = ogFlat(true), ROW = 46, INDENT = 26, BOX_W = 300, PAD = 20, top = 56;
+  const cut = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
+  const maxDepth = rows.reduce((m, r) => Math.max(m, r.depth), 0);
+  const width = PAD * 2 + maxDepth * INDENT + BOX_W, height = top + rows.length * ROW + PAD;
+  const heading = `별빛타로 조직도 (${todayStr().replace(/-/g, '.')})`;
+  const parts = [`<rect width="${width}" height="${height}" fill="#f6f4fa"/>`,
+    `<text x="${PAD}" y="34" font-family="sans-serif" font-size="19" font-weight="700" fill="#221a33">${esc(heading)}</text>`];
+  rows.forEach(({n, depth}, i) => {
+    const x = PAD + depth * INDENT, y = top + i * ROW, [bg, line] = OG_COLORS[n.color] || OG_COLORS.none;
+    if (depth > 0) {
+      const vx = PAD + (depth - 1) * INDENT + 12;
+      let up = y;
+      for (let k = i - 1; k >= 0; k--) if (rows[k].depth < depth) { up = top + k * ROW + ROW - 8; break; }
+      parts.push(`<path d="M${vx} ${up} V${y + ROW / 2 - 4} H${x}" fill="none" stroke="#d6cfe3" stroke-width="1.5"/>`);
+    }
+    parts.push(`<rect x="${x}" y="${y}" width="${BOX_W}" height="${ROW - 8}" rx="8" fill="${bg}" stroke="${line}"/>`);
+    const sub = [n.phone ? fmtPhone(n.phone) : '', n.note].filter(Boolean).join(' · ');
+    parts.push(`<text x="${x + 12}" y="${y + (sub ? 17 : 24)}" font-family="sans-serif" font-size="14" font-weight="600" fill="#221a33">${esc(cut(ogLabel(n), 26))}</text>`);
+    if (sub) parts.push(`<text x="${x + 12}" y="${y + 31}" font-family="sans-serif" font-size="11" fill="#7a7090">${esc(cut(sub, 44))}</text>`);
+  });
+  return {heading, width, height,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${parts.join('')}</svg>`};
+}
+
+async function ogDownloadPng() {
+  const {svg, width, height} = ogSvg();
+  try {
+    const img = await new Promise((ok, bad) => {
+      const i = new Image();
+      i.onload = () => ok(i); i.onerror = () => bad(new Error('그림을 만들지 못했어요'));
+      i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    });
+    // 인쇄해도 글자가 또렷하게 2배로 뜬다
+    const c = document.createElement('canvas');
+    c.width = width * 2; c.height = height * 2;
+    const ctx = c.getContext('2d');
+    ctx.scale(2, 2); ctx.drawImage(img, 0, 0);
+    const a = document.createElement('a');
+    a.href = c.toDataURL('image/png'); a.download = `별빛타로_조직도_${todayStr()}.png`; a.click();
+  } catch (e) { toast(e.message); }
+}
+
+function ogPrint() {
+  const {svg, heading} = ogSvg();
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) { toast('인쇄 창이 막혀 있어요. 팝업을 허용해주세요'); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(heading)}</title>` +
+    `<style>body{margin:0;padding:16px;background:#fff}svg{max-width:100%;height:auto}</style></head>` +
+    `<body>${svg}<script>window.onload=()=>{window.focus();window.print();}<\/script></body></html>`);
+  w.document.close();
+}
+
+/* ── 화면 ── */
+function renderOrg() {
+  if (!OG.nodes) { loadOrg(); return '<div class="empty">불러오는 중…</div>'; }
+  const q = OG.search.trim().toLowerCase();
+  const hits = q ? new Set(OG.nodes.filter(n => [n.name, n.title, n.phone, n.note].join(' ').toLowerCase().includes(q)).map(n => n.id)) : null;
+  // 찾은 상자가 보이도록 위쪽 가지는 펼쳐서 그린다
+  const open = new Set();
+  if (hits) hits.forEach(id => { for (let p = ogNode(id).parentId; p && !open.has(p); p = ogNode(p)?.parentId) open.add(p); });
+  const roots = ogKids('');
+  const canSeed = S.users.some(u => u.email === SUPER_ADMIN_EMAIL || u.roles?.admin || u.roles?.leader || u.roles?.caller);
+  const tree = roots.length
+    ? `<ul class="og-list">${roots.map(n => ogItem(n, hits, open)).join('')}</ul>
+       <div class="og-root-drop" data-og-rootdrop>여기에 끌어 놓으면 맨 위 줄로 올라가요</div>`
+    : `<div class="empty">아직 조직도가 비어 있어요<br><br>
+        <button class="btn primary" data-og-addroot>＋ 첫 상자 만들기</button>
+        ${canSeed ? '<button class="btn" data-og-seed>역할 등록 명단으로 초안 만들기</button>' : ''}</div>`;
+  return `
+    <div class="page-title">조직도 <span class="sub">상자 ${OG.nodes.length}개 · 사람 ${OG.nodes.filter(n => n.name).length}명 ·
+      상자를 끌어 다른 상자 가운데(그 아래로)·위쪽 끝(앞으로)·아래쪽 끝(뒤로)에 놓으면 옮겨져요</span></div>
+    <div class="toolbar">
+      <input type="search" id="og-search" placeholder="이름·직함·연락처로 찾기" value="${esc(OG.search)}">
+      <button class="btn sm" data-og-addroot>＋ 맨 위 상자</button>
+      <button class="btn sm" data-og-foldall="0">모두 펼치기</button>
+      <button class="btn sm" data-og-foldall="1">모두 접기</button>
+      <button class="btn sm" data-og-png ${roots.length ? '' : 'disabled'}>PNG 저장</button>
+      <button class="btn sm" data-og-print ${roots.length ? '' : 'disabled'}>인쇄·PDF</button>
+    </div>
+    ${hits ? `<div class="small muted" style="margin:-4px 0 10px">찾은 상자 ${hits.size}개 (점선 표시)</div>` : ''}
+    <div class="og-layout">
+      <div class="og-tree">${tree}</div>
+      ${renderOrgEditor()}
+    </div>`;
+}
+
+function ogItem(n, hits, open) {
+  const ks = ogKids(n.id);
+  const shut = ks.length && OG.folded.has(n.id) && !open.has(n.id);
+  const sub = [n.phone ? fmtPhone(n.phone) : '', n.note].filter(Boolean).join(' · ');
+  const cls = (n.color && n.color !== 'none' ? ' og-c-' + n.color : '') + (n.id === OG.sel ? ' on' : '') + (hits && hits.has(n.id) ? ' hit' : '');
+  const main = n.name
+    ? esc(n.name) + (n.title ? `<span class="t">${esc(n.title)}</span>` : '')
+    : n.title ? esc(n.title) : '<span class="muted">(빈 상자)</span>';
+  return `<li><div class="og-box${cls}" draggable="true" data-og-node="${n.id}">
+      <button class="og-fold${ks.length ? '' : ' none'}" data-og-fold="${n.id}" title="${shut ? '펼치기' : '접기'}">${shut ? '+' : '−'}</button>
+      <div><div class="og-main">${main}</div>${sub ? `<div class="og-sub">${esc(sub)}</div>` : ''}</div>
+      ${shut ? `<span class="og-cnt">+${ogBranch(n.id).length - 1}</span>` : ''}
+    </div>${ks.length && !shut ? `<ul class="og-list">${ks.map(k => ogItem(k, hits, open)).join('')}</ul>` : ''}</li>`;
+}
+
+function renderOrgEditor() {
+  const n = OG.sel && ogNode(OG.sel);
+  if (!n) return `<div class="panel og-edit"><h3>상자 편집</h3>
+    <p class="small muted" style="line-height:1.8">상자를 누르면 여기서 이름·직함·연락처를 고치고, 그 아래에 사람을 붙일 수 있어요.<br>
+    상자를 끌어서 옮길 수도 있어요. 휴대폰에서는 ‘상위 상자’를 바꿔 옮기면 돼요.</p></div>`;
+  const f = OG.form;
+  const sibs = ogKids(n.parentId || ''), i = sibs.findIndex(x => x.id === n.id);
+  const parents = ogFlat().filter(({n: p}) => !ogUnder(p.id, n.id));
+  const people = [...new Set(S.users.map(u => u.name).filter(Boolean))];
+  const branch = ogBranch(n.id).length;
+  return `<div class="panel og-edit">
+    <h3>상자 편집</h3>
+    <div class="grid2">
+      <div class="field"><label>이름</label><input type="text" data-og-f="name" maxlength="30" list="og-people" value="${esc(f.name)}"></div>
+      <div class="field"><label>직함·부서</label><input type="text" data-og-f="title" maxlength="30" placeholder="예: 대표, 1팀장" value="${esc(f.title)}"></div>
+    </div>
+    <datalist id="og-people">${people.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+    <div class="field"><label>연락처</label><input type="text" data-og-f="phone" maxlength="20" inputmode="tel" value="${esc(f.phone)}"></div>
+    <div class="field"><label>메모</label><input type="text" data-og-f="note" maxlength="200" placeholder="맡은 일 등" value="${esc(f.note)}"></div>
+    <div class="field"><label>색</label><div class="og-swatches">${Object.entries(OG_COLORS).map(([k, [bg, line]]) =>
+      `<button style="background:${bg};border-color:${line}" class="${f.color === k ? 'on' : ''}" data-og-color="${k}" title="${k}"></button>`).join('')}</div></div>
+    <div class="field"><label>상위 상자</label><select data-og-f="parentId">
+      <option value="">(맨 위 줄)</option>
+      ${parents.map(({n: p, depth}) => `<option value="${p.id}" ${p.id === f.parentId ? 'selected' : ''}>${'　'.repeat(depth)}${esc(ogLabel(p))}</option>`).join('')}
+    </select></div>
+    <div class="btn-row">
+      <button class="btn primary" data-og-save ${OG.dirty ? '' : 'disabled'}>저장</button>
+      <button class="btn" data-og-close>닫기</button>
+      ${n.updatedBy ? `<span class="small muted" style="margin-left:auto">${esc(n.updatedBy)} · ${fmt(new Date(n.updatedAt || 0))}</span>` : ''}
+    </div>
+    <hr>
+    <div class="btn-row" style="margin-bottom:8px">
+      <button class="btn sm" data-og-add="child">＋ 아래에 붙이기</button>
+      <button class="btn sm" data-og-add="sib">＋ 같은 줄에 추가</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn sm" data-og-step="-1" ${i <= 0 ? 'disabled' : ''}>▲ 위로</button>
+      <button class="btn sm" data-og-step="1" ${i >= sibs.length - 1 ? 'disabled' : ''}>▼ 아래로</button>
+      <button class="btn sm danger" data-og-del style="margin-left:auto">${branch > 1 ? `가지째 지우기 (${branch})` : '지우기'}</button>
+    </div>
+  </div>`;
+}
+
+/* ── 조작 ── */
+const ogLeave = () => !OG.dirty || confirm('고치던 내용을 저장하지 않고 넘어갈까요?');
+
+document.addEventListener('input', e => {
+  if (S.tab !== 'org') return;
+  const f = e.target.closest('[data-og-f]');
+  if (f) {
+    OG.form[f.dataset.ogF] = f.value; OG.dirty = true;
+    const b = $('[data-og-save]'); if (b) b.disabled = false;
+    return;
+  }
+  if (e.target.id === 'og-search') {
+    OG.search = e.target.value; render();
+    const s = $('#og-search'); s.focus(); s.setSelectionRange(s.value.length, s.value.length);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (S.tab === 'org' && e.key === 'Enter' && !e.isComposing && e.target.matches('input[data-og-f]')) { e.preventDefault(); ogSave(); }
+});
+
+document.addEventListener('click', e => {
+  if (S.tab !== 'org' || !OG.nodes) return;
+  const t = e.target;
+  const fold = t.closest('[data-og-fold]');
+  if (fold) {
+    const id = fold.dataset.ogFold;
+    if (OG.folded.has(id)) OG.folded.delete(id); else OG.folded.add(id);
+    ogSaveFolded(); render(); return;
+  }
+  const box = t.closest('[data-og-node]');
+  if (box) {
+    if (box.dataset.ogNode !== OG.sel && ogLeave()) { ogSelect(box.dataset.ogNode); render(); }
+    return;
+  }
+  if (t.closest('[data-og-save]')) { ogSave(); return; }
+  if (t.closest('[data-og-close]')) { if (ogLeave()) { ogSelect(null); render(); } return; }
+  const color = t.closest('[data-og-color]');
+  if (color) { OG.form.color = color.dataset.ogColor; OG.dirty = true; render(); return; }
+  if (t.closest('[data-og-addroot]')) { if (ogLeave()) ogAdd(''); return; }
+  const add = t.closest('[data-og-add]');
+  if (add) {
+    const n = ogNode(OG.sel);
+    if (!ogLeave()) return;
+    if (add.dataset.ogAdd === 'child') ogAdd(n.id);
+    else ogAdd(n.parentId || '', ogKids(n.parentId || '').findIndex(x => x.id === n.id) + 1);
+    return;
+  }
+  const step = t.closest('[data-og-step]');
+  if (step) {
+    const n = ogNode(OG.sel), pid = n.parentId || '';
+    ogMove(n.id, pid, ogKids(pid).findIndex(x => x.id === n.id) + Number(step.dataset.ogStep));
+    return;
+  }
+  if (t.closest('[data-og-del]')) { ogDelete(OG.sel); return; }
+  const fa = t.closest('[data-og-foldall]');
+  if (fa) {
+    // 모두 접기 = 맨 위 줄과 그 바로 아래만 보이게
+    OG.folded = fa.dataset.ogFoldall === '1' ? new Set(OG.nodes.filter(n => n.parentId && ogKids(n.id).length).map(n => n.id)) : new Set();
+    ogSaveFolded(); render(); return;
+  }
+  if (t.closest('[data-og-seed]')) { ogSeed(); return; }
+  if (t.closest('[data-og-png]')) { ogDownloadPng(); return; }
+  if (t.closest('[data-og-print]')) { ogPrint(); return; }
+});
+
+// 끌어 옮기기: 상자 가운데 = 그 아래로, 위쪽 1/4 = 앞으로, 아래쪽 1/4 = 뒤로
+function ogDropZone(e) {
+  if (!OG.drag) return null;
+  const root = e.target.closest?.('[data-og-rootdrop]');
+  if (root) return {el: root, id: '', where: 'in'};
+  const el = e.target.closest?.('[data-og-node]');
+  if (!el || ogUnder(el.dataset.ogNode, OG.drag)) return null;
+  const r = el.getBoundingClientRect(), y = (e.clientY - r.top) / r.height;
+  return {el, id: el.dataset.ogNode, where: y < .25 ? 'before' : y > .75 ? 'after' : 'in'};
+}
+const ogClearDrop = () => document.querySelectorAll('.drop-in,.drop-before,.drop-after')
+  .forEach(x => x.classList.remove('drop-in', 'drop-before', 'drop-after'));
+
+document.addEventListener('dragstart', e => {
+  const el = e.target.closest?.('[data-og-node]');
+  if (!el) return;
+  OG.drag = el.dataset.ogNode;
+  el.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', OG.drag);
+});
+document.addEventListener('dragend', () => {
+  OG.drag = null; ogClearDrop();
+  document.querySelector('.og-box.dragging')?.classList.remove('dragging');
+});
+document.addEventListener('dragover', e => {
+  if (!OG.drag) return;
+  const z = ogDropZone(e);
+  ogClearDrop();
+  if (!z) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  z.el.classList.add('drop-' + z.where);
+});
+document.addEventListener('drop', e => {
+  const z = ogDropZone(e), id = OG.drag;
+  if (!id) return;
+  e.preventDefault();
+  OG.drag = null; ogClearDrop();
+  if (!z) return;
+  if (z.where === 'in') { ogMove(id, z.id, ogKids(z.id).filter(n => n.id !== id).length); return; }
+  const pid = ogNode(z.id).parentId || '';
+  const sibs = ogKids(pid).filter(n => n.id !== id);
+  ogMove(id, pid, sibs.findIndex(n => n.id === z.id) + (z.where === 'after' ? 1 : 0));
 });
 </script>
 </body>
