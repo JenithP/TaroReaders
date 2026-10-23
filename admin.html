@@ -266,6 +266,8 @@ const FIREBASE_CONFIG = {
 const SUPER_ADMIN_EMAIL = 'leily.yoon@gmail.com'; // firestore.rules 의 isSuper()와 같아야 한다
 // 회계장부를 볼 수 있는 사람: 박영희, 김소영, 이야호(은하수), 박윤정(최고 관리자). firestore.rules 의 isAccounting(), api/receipt.js 와 같아야 한다
 const LEDGER_EMAILS = ['yhparkgg@gmail.com', 'vkstpk@gmail.com', 'jmyklove@gmail.com', 'leily.yoon@gmail.com'];
+// 콜러 카톡 오픈프로필 링크 — api/kakao.js 의 LINK_RE, firestore.rules 와 같아야 한다
+const KAKAO_LINK_RE = /^https:\/\/open\.kakao\.com\/[A-Za-z0-9_\/-]{1,80}$/;
 const LEADER_CAP = 15;          // 리더 1인당 담당 상한 (사업캔버스 기준)
 const READINGS_LIMIT = 2000;
 
@@ -379,6 +381,7 @@ onAuthStateChanged(auth, async user => {
     const isSuper = user.email === SUPER_ADMIN_EMAIL && user.emailVerified;
     S.me = {
       uid: user.uid, email: user.email, name: profile.name, roles, isSuper,
+      kakaoLink: (snap.exists() && snap.data().kakaoLink) || '',
       isAdmin: isSuper || !!roles.admin, isLeader: !!roles.leader, isCaller: !!roles.caller,
       isAccounting: user.emailVerified && LEDGER_EMAILS.includes((user.email || '').toLowerCase()),
     };
@@ -631,8 +634,41 @@ const codeCell = c => c.latestCode
 const seminarBadge = c => c.seminar && c.seminar.id
   ? `<span class="badge ${c.attendedAt ? 'b-done' : 'b-muted'}">🗓 ${esc(seminarShort(c))}${c.attendedAt ? ' 참석' : ''}</span>` : '';
 // 리딩 후 '코드 복사하고 카톡으로 보내기'를 누른 고객
+// 버튼을 누르면 api/kakao.js 가 콜러를 돌아가며 배정하고 그 콜러의 오픈프로필로 연결한다
 const kakaoBadge = c => c.kakaoAt
-  ? `<span class="badge b-kakao" title="${esc(fmt(c.kakaoAt))} 카톡 버튼 누름 · 코드 ${esc(c.kakaoCode || '')}">💬 카톡</span>` : '';
+  ? `<span class="badge b-kakao" title="${esc(fmt(c.kakaoAt))} 카톡 버튼 누름 · 코드 ${esc(c.kakaoCode || '')}${c.callerName ? ' · ' + esc(c.callerName) + '에게 연결' : ''}">💬 카톡${c.callerName ? ' → ' + esc(c.callerName) : ''}</span>` : '';
+
+// 콜러 본인의 카톡 오픈프로필 링크 (내 콜링 화면 위)
+function myKakaoPanel() {
+  const me = S.me;
+  if (!me.isCaller) return '';
+  const ok = KAKAO_LINK_RE.test(me.kakaoLink);
+  return `<div class="panel">
+      <h3>내 카톡 오픈프로필 <span class="muted small">${ok ? '등록됨 — 리딩 고객이 카톡 버튼을 누르면 콜러에게 돌아가며 연결되고, 배정된 고객은 여기 목록에 바로 떠요'
+        : '링크를 등록해야 리딩 고객이 카톡으로 연결돼요'}</span></h3>
+      <div class="toolbar" style="margin:0">
+        <input class="inp" id="my-kakao-link" placeholder="https://open.kakao.com/o/..." value="${esc(me.kakaoLink)}" style="flex:1;min-width:220px">
+        <button class="btn primary" data-action="save-my-kakao">저장</button>
+        ${ok ? `<a class="btn" href="${esc(me.kakaoLink)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">열어 보기</a>` : ''}
+      </div>
+    </div>`;
+}
+
+async function saveKakaoLink(uid, raw) {
+  const kakaoLink = raw.trim();
+  if (kakaoLink && !KAKAO_LINK_RE.test(kakaoLink)) { toast('https://open.kakao.com/ 으로 시작하는 오픈프로필 링크를 넣어주세요'); return false; }
+  try {
+    await updateDoc(doc(db, 'users', uid), {kakaoLink, kakaoLinkUpdatedAt: serverTimestamp()});
+    if (uid === S.me.uid) S.me.kakaoLink = kakaoLink;
+    const u = (S.users || []).find(x => x.uid === uid);
+    if (u) u.kakaoLink = kakaoLink;
+    toast(kakaoLink ? '카톡 링크를 저장했어요' : '카톡 링크를 비웠어요');
+    return true;
+  } catch (e) { toast('저장 실패: ' + (e.code || e.message)); return false; }
+}
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-action=save-my-kakao]') && await saveKakaoLink(S.me.uid, $('#my-kakao-link').value)) render();
+});
 const seminarCell = c => (kakaoBadge(c) + ' ' + seminarBadge(c)).trim() || '<span class="muted">-</span>';
 const stageBadge = c => `<span class="badge b-stage">${STAGES[stageOf(c)].k}</span>`;
 // 센터·인도자·교사·섬김이 (관리자와 담당 리더가 직접 입력)
@@ -676,6 +712,7 @@ function renderCustomers() {
 
   return `
     <div class="page-title">${title} <span class="sub">${all.length}명 · 연락 전 ${before}명</span> ${autoBtn}</div>
+    ${myKakaoPanel()}
     <div class="toolbar">
       <input type="search" id="search" placeholder="이름·전화번호·리딩 코드 검색" value="${esc(S.search)}">
       <select id="stage-filter">${stageOpts}</select>
@@ -855,7 +892,7 @@ function customerDetail(c) {
           <dt>전화번호</dt><dd><a href="tel:${esc(c.phone)}"><b>${esc(fmtPhone(c.phone))}</b></a></dd>
           <dt>리딩 코드</dt><dd class="code">${(c.codes || []).map(esc).join(', ') || '<span class="muted">리딩 없음 (세미나로 바로 신청)</span>'}</dd>
           <dt>유입</dt><dd>${esc(c.src) || '<span class="muted">직접</span>'}</dd>
-          <dt>카톡</dt><dd>${c.kakaoAt ? `${kakaoBadge(c)} ${fmt(c.kakaoAt)} 코드 <span class="code">${esc(c.kakaoCode)}</span>로 카톡 연결` : '<span class="muted">카톡 버튼 안 누름</span>'}</dd>
+          <dt>카톡</dt><dd>${c.kakaoAt ? `${kakaoBadge(c)} ${fmt(c.kakaoAt)} 코드 <span class="code">${esc(c.kakaoCode)}</span>로 ${c.callerName ? `<b>${esc(c.callerName)}</b> 오픈프로필에 ` : ''}카톡 연결` : '<span class="muted">카톡 버튼 안 누름</span>'}</dd>
           <dt>사는 곳</dt><dd>${esc(c.region) || '<span class="muted">-</span>'}</dd>
           <dt>소식 수신</dt><dd>${c.marketingConsent ? '동의' : '<span class="muted">미동의 — 모임 홍보 연락은 하지 않아요</span>'}</dd>
           <dt>접수</dt><dd>${fmt(c.firstContactAt)}${c.readingCount > 1 ? ` · 리딩 ${c.readingCount}회 (최근 ${fmt(c.lastContactAt)})` : ''}</dd>
@@ -1364,6 +1401,17 @@ function renderStaff() {
       ${chipList('caller', '콜러')}
     </div>
     <div class="panel">
+      <h3>콜러 카톡 오픈프로필 <span class="muted small">리딩 고객이 '카톡으로 보내기'를 누르면 링크를 등록한 콜러에게 돌아가며 연결되고, 그 콜러에게 바로 배정돼요. 콜러 본인도 '내 콜링' 화면에서 등록할 수 있어요. 등록한 콜러가 없으면 기본 링크로 연결돼요.</span></h3>
+      ${byRole('caller').length ? `<div class="table-wrap"><table>
+        <thead><tr><th>콜러</th><th>오픈프로필 링크</th><th>카톡 배정</th><th>최근 배정</th></tr></thead>
+        <tbody>${byRole('caller').map(u => `<tr>
+          <td><b>${esc(u.name)}</b>${KAKAO_LINK_RE.test(u.kakaoLink || '') ? '' : ' <span class="badge b-before">링크 없음</span>'}</td>
+          <td><input class="inp" data-kakao-link="${esc(u.uid)}" placeholder="https://open.kakao.com/o/..." value="${esc(u.kakaoLink || '')}" style="min-width:240px"></td>
+          <td>${u.kakaoAssignCount || 0}명</td>
+          <td class="muted small">${fmt(u.kakaoLastAssignedAt) || '-'}</td>
+        </tr>`).join('')}</tbody></table></div>` : '<span class="muted small">등록된 콜러가 없어요</span>'}
+    </div>
+    <div class="panel">
       <h3>세미나 스태프 <span class="muted small">현장 안내, 카페 섭외, 굿즈 준비, 공간 연출</span></h3>
       ${chipList('seminarStaff', '세미나 스태프')}
     </div>
@@ -1393,6 +1441,8 @@ document.addEventListener('click', async e => {
 document.addEventListener('change', async e => {
   const b = e.target.closest('input[data-role]');
   if (b) await setRole(b.dataset.uid, b.dataset.role, b.checked);
+  const kl = e.target.closest('input[data-kakao-link]');
+  if (kl && await saveKakaoLink(kl.dataset.kakaoLink, kl.value)) render();
   const ins = e.target.closest('input[data-instructor]');
   if (ins) {
     const u = S.users.find(x => x.uid === ins.dataset.instructor);

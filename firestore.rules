@@ -63,11 +63,8 @@ service cloud.firestore {
         && request.resource.data.phone.matches('^01[0-9]{8,9}$')
         && request.resource.data.region is string && request.resource.data.region.size() <= 20
         && request.resource.data.marketingConsent is bool
-        && request.resource.data.contactAt == request.time)
-        // 연락처를 남긴 뒤 카톡 버튼을 누른 시각도 한 번만
-        || (('phone' in resource.data) && !('kakaoAt' in resource.data)
-        && changed().hasOnly(['kakaoAt'])
-        && request.resource.data.kakaoAt == request.time);
+        && request.resource.data.contactAt == request.time);
+      // 카톡 버튼(kakaoAt)과 콜러 배정은 서버(api/kakao.js, Admin SDK)가 기록한다
 
       allow read, delete: if isAdmin();
     }
@@ -113,16 +110,21 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['email', 'name', 'photoURL', 'createdAt', 'lastLoginAt'])
         && request.resource.data.email == request.auth.token.email;
 
-      // 본인은 프로필만, 관리자는 역할만 바꿀 수 있다. 관리자 지정·해제는 최고 관리자만.
-      allow update: if (signedIn() && request.auth.uid == uid
-            && changed().hasOnly(['name', 'photoURL', 'lastLoginAt']))
+      // 본인은 프로필과 카톡 오픈프로필 링크만, 관리자는 역할·링크만 바꿀 수 있다. 관리자 지정·해제는 최고 관리자만.
+      // 링크 모양은 api/kakao.js 의 LINK_RE 와 같아야 한다 (배정 순서 kakaoLastAssignedAt 등은 서버만 쓴다)
+      allow update: if ((signedIn() && request.auth.uid == uid
+            && changed().hasOnly(['name', 'photoURL', 'lastLoginAt', 'kakaoLink', 'kakaoLinkUpdatedAt']))
         || (isAdmin()
-            && changed().hasOnly(['roles', 'rolesUpdatedAt', 'instructor', 'instructorUpdatedAt'])
+            && changed().hasOnly(['roles', 'rolesUpdatedAt', 'instructor', 'instructorUpdatedAt', 'kakaoLink', 'kakaoLinkUpdatedAt'])
             && (!('instructor' in request.resource.data)
                 || (request.resource.data.instructor is string && request.resource.data.instructor.size() <= 20))
             && (isSuper()
                 || request.resource.data.get('roles', {}).get('admin', false)
-                   == resource.data.get('roles', {}).get('admin', false)));
+                   == resource.data.get('roles', {}).get('admin', false))))
+        && (!('kakaoLink' in request.resource.data)
+            || request.resource.data.kakaoLink == ''
+            || (request.resource.data.kakaoLink is string
+                && request.resource.data.kakaoLink.matches('^https://open[.]kakao[.]com/[A-Za-z0-9_/-]{1,80}$')));
 
       allow delete: if isSuper();
     }
