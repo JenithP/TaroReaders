@@ -506,14 +506,23 @@ body{
     <div class="dialog-title">✦ 당신에 대해 알려주세요 ✦</div>
     <div class="dialog-text" style="min-height:auto;margin-bottom:4px;font-size:.88rem">
       카드를 섞기 전에, 당신에 대해 조금 알려주세요.<br><br>
-      <span class="highlight">생년월일</span>과 <span class="highlight">질문</span>은 타로의 기운이 당신에게 온전히 집중되도록 도와줍니다.
+      <span class="highlight">질문</span>은 타로의 기운이 당신에게 온전히 집중되도록 도와줍니다.
     </div>
     <div class="input-wrap">
       <div class="input-field-group">
         <div class="input-field-label">성함</div>
         <input class="name-input" id="user-name-input" type="text" placeholder="실명을 입력해주세요" maxlength="20" style="margin-top:0">
       </div>
-      <div class="input-field-group">
+      <div class="privacy-wrap" style="max-width:300px;width:100%;margin-top:0">
+        <label class="privacy-label">
+          <input type="checkbox" id="c-birth" onchange="toggleBirth()">
+          <span class="privacy-check-box"></span>
+          <span class="privacy-text">
+            <strong>[선택]</strong> 생년월일을 입력하시면 <span class="highlight">타고난 운세</span>에 맞춘 타로로 봐드려요.
+          </span>
+        </label>
+      </div>
+      <div class="input-field-group" id="birth-group" style="display:none">
         <div class="input-field-label">생년월일</div>
         <input class="name-input" id="user-birth-input" type="date" style="margin-top:0">
       </div>
@@ -534,7 +543,7 @@ body{
         </label>
         <div class="privacy-detail" id="privacy-detail-info">
           <strong>운영:</strong> 별빛타로<br>
-          <strong>수집 항목:</strong> 이름, 생년월일, 질문, 리딩 결과, 유입 경로 / (입력 시) 전화번호, 거주 지역<br>
+          <strong>수집 항목:</strong> 이름, 질문, 리딩 결과, 유입 경로 / (입력 시) 생년월일, 전화번호, 거주 지역<br>
           <strong>이용 목적:</strong> 타로 리딩 제공, 리딩 결과 안내 및 리더 상담 연결<br>
           <strong>보유 기간:</strong> 수집일로부터 3년. 기간이 끝나거나 삭제를 요청하시면 지체 없이 파기합니다.<br>
           <strong>파기 방법:</strong> 전자 기록은 복구할 수 없는 방식으로 영구 삭제합니다.<br>
@@ -1137,6 +1146,12 @@ function showInfoSection() {
   fadeTransition(() => showSection('section-info'));
 }
 
+function toggleBirth() {
+  const on = document.getElementById('c-birth').checked;
+  document.getElementById('birth-group').style.display = on ? '' : 'none';
+  if (on) document.getElementById('user-birth-input').focus();
+}
+
 function beginShuffle() {
   const nameEl = document.getElementById('user-name-input');
   const birthEl = document.getElementById('user-birth-input');
@@ -1144,11 +1159,13 @@ function beginShuffle() {
   const errEl = document.getElementById('info-error');
   const name = nameEl.value.trim();
   if (!name) { errEl.textContent = '성함을 입력해주세요.'; return; }
+  const wantsBirth = document.getElementById('c-birth').checked;
+  if (wantsBirth && !birthEl.value) { errEl.textContent = '생년월일을 입력해주세요. (원하지 않으시면 체크를 해제해주세요)'; return; }
   if (!document.getElementById('c-required').checked) { errEl.textContent = '개인정보 수집·이용에 동의해주세요.'; return; }
   errEl.textContent = '';
 
   userName = name;
-  userBirth = birthEl ? birthEl.value.trim() : '';
+  userBirth = wantsBirth ? birthEl.value.trim() : '';
   userQuestion = questionEl ? questionEl.value.trim() : '';
   startShuffle();
 }
@@ -1686,7 +1703,8 @@ function restart() {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
-    ['c-required','c-marketing'].forEach(id => { document.getElementById(id).checked = false; });
+    ['c-required','c-marketing','c-birth'].forEach(id => { document.getElementById(id).checked = false; });
+    document.getElementById('birth-group').style.display = 'none';
     document.getElementById('info-form').style.display = '';
     document.getElementById('success-msg').style.display = 'none';
     document.getElementById('register-skip').style.display = '';
