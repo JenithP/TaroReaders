@@ -29,6 +29,10 @@ service cloud.firestore {
     function isAdmin() {
       return isSuper() || hasRole('admin');
     }
+    // 회계장부: 최고 관리자가 '회계' 역할을 준 사람만 (관리자라도 역할이 없으면 못 본다)
+    function isAccounting() {
+      return hasRole('accounting');
+    }
     function isStaff() {
       return isAdmin() || hasRole('leader') || hasRole('caller');
     }
@@ -114,8 +118,10 @@ service cloud.firestore {
             && (!('instructor' in request.resource.data)
                 || (request.resource.data.instructor is string && request.resource.data.instructor.size() <= 20))
             && (isSuper()
-                || request.resource.data.get('roles', {}).get('admin', false)
-                   == resource.data.get('roles', {}).get('admin', false)));
+                || (request.resource.data.get('roles', {}).get('admin', false)
+                      == resource.data.get('roles', {}).get('admin', false)
+                    && request.resource.data.get('roles', {}).get('accounting', false)
+                      == resource.data.get('roles', {}).get('accounting', false))));
 
       allow delete: if isSuper();
     }
@@ -140,20 +146,20 @@ service cloud.firestore {
                                   'center', 'guide', 'teacher', 'server', 'updatedAt', 'updatedBy']));
     }
 
-    // ── 회계장부 (관리자만). 영수증 사진은 목록을 가볍게 하려고 따로 둔다 (같은 문서 ID) ──
+    // ── 회계장부 ('회계' 역할만). 영수증 사진은 목록을 가볍게 하려고 따로 둔다 (같은 문서 ID) ──
     match /ledger/{id} {
-      allow read, delete: if isAdmin();
-      allow create, update: if isAdmin()
+      allow read, delete: if isAccounting();
+      allow create, update: if isAccounting()
         && request.resource.data.type in ['in', 'out']
         && request.resource.data.amount is int && request.resource.data.amount >= 0
         && request.resource.data.date is string && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }
     match /ledgerReceipts/{id} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAccounting();
     }
     // 개인 돈으로 낸 사람의 정산 계좌 (이름 = 문서 ID)
     match /ledgerPayees/{name} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAccounting();
     }
 
     // ── 조직도 (관리자만, 연락처가 들어 있다). 상자 하나 = 문서 하나, parentId 로 나무가 된다 ──

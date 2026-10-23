@@ -1,26 +1,23 @@
-// 회계장부: 영수증 사진에서 날짜·금액·거래처를 읽어 온다 (관리자만)
+// 회계장부: 영수증 사진에서 날짜·금액·거래처를 읽어 온다 ('회계' 역할만)
 // 이미지는 브라우저가 줄여서 data URL 로 보내고, 저장은 관리자 페이지가 Firestore 에 직접 한다.
 import { getAuth } from 'firebase-admin/auth';
 import { db } from '../lib/ig/store.js';
 
-const SUPER_ADMIN_EMAIL = 'leily.yoon@gmail.com'; // firestore.rules 의 isSuper()와 같아야 한다
-
-async function isAdmin(req) {
+async function isAccounting(req) {
   const h = req.headers.authorization || '';
   if (!h.startsWith('Bearer ')) return false;
   db(); // Admin 앱 초기화
   const t = await getAuth().verifyIdToken(h.slice(7)).catch(() => null);
   if (!t) return false;
-  if (t.email === SUPER_ADMIN_EMAIL && t.email_verified) return true;
   const u = await db().collection('users').doc(t.uid).get();
-  return u.exists && u.data().roles?.admin === true;
+  return u.exists && u.data().roles?.accounting === true;
 }
 
 const list = (v) => (Array.isArray(v) ? v : []).filter(s => typeof s === 'string' && s.length <= 20).slice(0, 30);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
-  if (!(await isAdmin(req))) return res.status(403).json({ error: '관리자만 쓸 수 있어요' });
+  if (!(await isAccounting(req))) return res.status(403).json({ error: '회계 담당만 쓸 수 있어요' });
 
   let body = req.body;
   if (!body || typeof body === 'string') {
