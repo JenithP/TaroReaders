@@ -264,6 +264,8 @@ const FIREBASE_CONFIG = {
   appId: '1:850870746617:web:b223c1b0c3d61adaf65128',
 };
 const SUPER_ADMIN_EMAIL = 'leily.yoon@gmail.com'; // firestore.rules 의 isSuper()와 같아야 한다
+// 회계장부를 볼 수 있는 사람: 박영희, 김소영, 이야호(은하수), 박윤정(최고 관리자). firestore.rules 의 isAccounting(), api/receipt.js 와 같아야 한다
+const LEDGER_EMAILS = ['yhparkgg@gmail.com', 'vkstpk@gmail.com', 'jmyklove@gmail.com', 'leily.yoon@gmail.com'];
 const LEADER_CAP = 15;          // 리더 1인당 담당 상한 (사업캔버스 기준)
 const READINGS_LIMIT = 2000;
 
@@ -378,7 +380,7 @@ onAuthStateChanged(auth, async user => {
     S.me = {
       uid: user.uid, email: user.email, name: profile.name, roles, isSuper,
       isAdmin: isSuper || !!roles.admin, isLeader: !!roles.leader, isCaller: !!roles.caller,
-      isAccounting: !!roles.accounting, // 회계장부는 이 역할만 (최고 관리자도 역할을 켜야 보인다)
+      isAccounting: user.emailVerified && LEDGER_EMAILS.includes((user.email || '').toLowerCase()),
     };
     if (!S.me.isAdmin && !S.me.isLeader && !S.me.isCaller && !S.me.isAccounting) {
       $('#pending-email').textContent = user.email;
@@ -1335,7 +1337,7 @@ function renderStaff() {
   const chipList = (r, label) => {
     const list = byRole(r);
     return list.length ? list.map(u => `<span class="staff-chip">${esc(u.name)}
-        ${!['admin', 'accounting'].includes(r) || me.isSuper ? `<button title="${label}에서 해제" data-role="${r}" data-uid="${esc(u.uid)}" data-on="0">✕</button>` : ''}</span>`).join('')
+        ${r !== 'admin' || me.isSuper ? `<button title="${label}에서 해제" data-role="${r}" data-uid="${esc(u.uid)}" data-on="0">✕</button>` : ''}</span>`).join('')
       : `<span class="muted small">등록된 ${label}가 없어요</span>`;
   };
   const users = [...S.users].sort((a, b) => ms(b.createdAt) - ms(a.createdAt));
@@ -1346,7 +1348,7 @@ function renderStaff() {
         <input type="checkbox" data-role="${role}" data-uid="${esc(u.uid)}" ${r[role] ? 'checked' : ''} ${allowed ? '' : 'disabled'}> ${label}</label>`;
     return `<tr>
       <td><b>${esc(u.name)}</b></td><td class="muted">${esc(u.email)}</td>
-      <td>${isSuperRow ? '<span class="badge b-stage">최고 관리자</span> ' : tog('admin', '관리자', me.isSuper)}${tog('leader', '리더', true)}${tog('caller', '콜러', true)}${tog('seminarStaff', '세미나 스태프', true)}${tog('marketing', '마케팅', true)}${tog('accounting', '회계', me.isSuper)}</td>
+      <td>${isSuperRow ? '<span class="badge b-stage">최고 관리자</span> ' : tog('admin', '관리자', me.isSuper)}${tog('leader', '리더', true)}${tog('caller', '콜러', true)}${tog('seminarStaff', '세미나 스태프', true)}${tog('marketing', '마케팅', true)}</td>
       <td class="muted small">${fmt(u.createdAt, false)}</td><td class="muted small">${fmt(u.lastLoginAt)}</td>
       <td><input class="inp" data-instructor="${esc(u.uid)}" maxlength="20" placeholder="이름" value="${esc(u.instructor || '')}" style="min-width:110px"></td>
     </tr>`;
@@ -1373,10 +1375,7 @@ function renderStaff() {
       <h3>관리자 <span class="muted small">${me.isSuper ? '전체 고객 조회·배정·등록 권한' : '관리자 지정은 최고 관리자만 할 수 있어요'}</span></h3>
       ${chipList('admin', '관리자')}
     </div>
-    <div class="panel">
-      <h3>회계 <span class="muted small">회계장부를 볼 수 있는 사람 · ${me.isSuper ? '최고 관리자도 여기 있어야 회계장부가 보여요' : '지정은 최고 관리자만 할 수 있어요'}</span></h3>
-      ${chipList('accounting', '회계')}
-    </div>
+
 
     <div class="page-title" style="margin-top:8px">가입자 목록 <span class="sub">관리자 페이지에 구글로 로그인한 사람들 — 체크해서 역할을 지정하세요</span></div>
     <div class="table-wrap"><table>
@@ -1408,7 +1407,7 @@ document.addEventListener('change', async e => {
 
 async function setRole(uid, role, on) {
   const u = S.users.find(x => x.uid === uid);
-  const labels = {admin: '관리자', leader: '리더', caller: '콜러', seminarStaff: '세미나 스태프', marketing: '마케팅', accounting: '회계'};
+  const labels = {admin: '관리자', leader: '리더', caller: '콜러', seminarStaff: '세미나 스태프', marketing: '마케팅'};
   if (!on && (role === 'leader' || role === 'caller')) {
     const k = role === 'leader' ? 'leaderUid' : 'callerUid';
     const n = [...S.customers.values()].filter(c => c[k] === uid).length;

@@ -1,16 +1,17 @@
-// 회계장부: 영수증 사진에서 날짜·금액·거래처를 읽어 온다 ('회계' 역할만)
+// 회계장부: 영수증 사진에서 날짜·금액·거래처를 읽어 온다 (박영희, 김소영, 이야호(은하수), 박윤정(최고 관리자)만)
 // 이미지는 브라우저가 줄여서 data URL 로 보내고, 저장은 관리자 페이지가 Firestore 에 직접 한다.
 import { getAuth } from 'firebase-admin/auth';
 import { db } from '../lib/ig/store.js';
+
+// admin.html 의 LEDGER_EMAILS, firestore.rules 의 isAccounting()과 같아야 한다
+const LEDGER_EMAILS = ['yhparkgg@gmail.com', 'vkstpk@gmail.com', 'jmyklove@gmail.com', 'leily.yoon@gmail.com'];
 
 async function isAccounting(req) {
   const h = req.headers.authorization || '';
   if (!h.startsWith('Bearer ')) return false;
   db(); // Admin 앱 초기화
   const t = await getAuth().verifyIdToken(h.slice(7)).catch(() => null);
-  if (!t) return false;
-  const u = await db().collection('users').doc(t.uid).get();
-  return u.exists && u.data().roles?.accounting === true;
+  return !!t && t.email_verified === true && LEDGER_EMAILS.includes((t.email || '').toLowerCase());
 }
 
 const list = (v) => (Array.isArray(v) ? v : []).filter(s => typeof s === 'string' && s.length <= 20).slice(0, 30);

@@ -29,9 +29,12 @@ service cloud.firestore {
     function isAdmin() {
       return isSuper() || hasRole('admin');
     }
-    // 회계장부: 최고 관리자가 '회계' 역할을 준 사람만 (관리자라도 역할이 없으면 못 본다)
+    // 회계장부: 아래 네 명만 (박영희, 김소영, 이야호(은하수), 박윤정(최고 관리자)). 관리자라도 여기 없으면 못 본다
+    // admin.html 의 LEDGER_EMAILS, api/receipt.js 와 같아야 한다
     function isAccounting() {
-      return hasRole('accounting');
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['yhparkgg@gmail.com', 'vkstpk@gmail.com', 'jmyklove@gmail.com', 'leily.yoon@gmail.com'];
     }
     function isStaff() {
       return isAdmin() || hasRole('leader') || hasRole('caller');
@@ -118,10 +121,8 @@ service cloud.firestore {
             && (!('instructor' in request.resource.data)
                 || (request.resource.data.instructor is string && request.resource.data.instructor.size() <= 20))
             && (isSuper()
-                || (request.resource.data.get('roles', {}).get('admin', false)
-                      == resource.data.get('roles', {}).get('admin', false)
-                    && request.resource.data.get('roles', {}).get('accounting', false)
-                      == resource.data.get('roles', {}).get('accounting', false))));
+                || request.resource.data.get('roles', {}).get('admin', false)
+                   == resource.data.get('roles', {}).get('admin', false)));
 
       allow delete: if isSuper();
     }
@@ -146,7 +147,7 @@ service cloud.firestore {
                                   'center', 'guide', 'teacher', 'server', 'updatedAt', 'updatedBy']));
     }
 
-    // ── 회계장부 ('회계' 역할만). 영수증 사진은 목록을 가볍게 하려고 따로 둔다 (같은 문서 ID) ──
+    // ── 회계장부 (isAccounting 네 명만). 영수증 사진은 목록을 가볍게 하려고 따로 둔다 (같은 문서 ID) ──
     match /ledger/{id} {
       allow read, delete: if isAccounting();
       allow create, update: if isAccounting()
