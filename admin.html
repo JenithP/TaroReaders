@@ -178,6 +178,10 @@ td.num,th.num{text-align:right}
 .og-main{font-weight:600;font-size:.9rem;line-height:1.3}
 .og-main .t{font-weight:400;color:var(--muted);font-size:.8rem;margin-left:4px}
 .og-sub{font-size:.74rem;color:var(--muted);line-height:1.3;margin-top:1px}
+.og-tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px}
+.og-tags .badge{font-size:.66rem;padding:0 6px}
+.og-acct{background:#fbfaff;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:12px}
+.og-acct .role-toggle{margin:4px 10px 0 0}
 .og-cnt{margin-left:auto;font-size:.7rem;color:var(--muted);background:#f3f0f8;border-radius:10px;padding:0 7px}
 .og-c-gold{background:#faf1dc;border-color:#ecd9a8}
 .og-c-green{background:#e9f6ee;border-color:#bfe3cc}
@@ -2262,8 +2266,8 @@ document.addEventListener('click', async e => {
 ═══════════════════════════════════════ */
 const OG_COLORS = {none: ['#ffffff', '#d9d3c6'], gold: ['#faf1dc', '#ecd9a8'], green: ['#e9f6ee', '#bfe3cc'],
   blue: ['#e9eff8', '#c3d2ea'], rose: ['#fbe9e6', '#f0c9c4'], gray: ['#f1eee7', '#ddd7cb']};
-const OG_FIELDS = ['name', 'title', 'phone', 'note', 'color'];
-const ogBlank = () => ({name: '', title: '', phone: '', note: '', color: 'none', parentId: ''});
+const OG_FIELDS = ['uid', 'name', 'title', 'phone', 'note', 'color'];
+const ogBlank = () => ({uid: '', name: '', title: '', phone: '', note: '', color: 'none', parentId: ''});
 
 const OG = {
   nodes: null, loading: false, busy: false,
@@ -2290,7 +2294,16 @@ const ogSaveFolded = () => { try { localStorage.setItem('og-folded', JSON.string
 
 const ogNode = id => OG.nodes.find(n => n.id === id);
 const ogKids = pid => OG.nodes.filter(n => (n.parentId || '') === pid).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-const ogLabel = n => [n.name, n.title].filter(Boolean).join(' · ') || '(빈 상자)';
+// 계정(uid)과 연결된 상자는 이름·전화번호·역할을 가입자 정보에서 가져온다.
+// 역할은 여기서도 체크박스로만 바뀌고, 상자를 옮기는 것으로는 절대 바뀌지 않는다.
+const ogUser = n => n.uid ? S.users.find(u => u.uid === n.uid) || null : null;
+const ogName = n => ogUser(n)?.name || n.name || '';
+const ogPhone = n => n.uid && ogUser(n) ? ogUser(n).phone || '' : n.phone || '';
+const OG_ROLES = [['admin', '관리자'], ['leader', '리더'], ['caller', '콜러'], ['seminarStaff', '세미나 스태프'], ['marketing', '마케팅']];
+const ogRoleNames = u => u.email === SUPER_ADMIN_EMAIL ? ['최고 관리자', ...OG_ROLES.slice(1).filter(([k]) => u.roles?.[k]).map(([, l]) => l)]
+  : OG_ROLES.filter(([k]) => u.roles?.[k]).map(([, l]) => l);
+const ogNoLink = u => !!u.roles?.caller && !KAKAO_LINK_RE.test(u.kakaoLink || '');
+const ogLabel = n => [ogName(n), n.title].filter(Boolean).join(' · ') || '(빈 상자)';
 // a 가 b 자신이거나 b 아래에 있나 — 자기 아래로 옮기면 고리가 생겨 그려지지 않는다
 function ogUnder(a, b) {
   for (let p = a, guard = 0; p && guard < 2000; p = ogNode(p)?.parentId || '', guard++) if (p === b) return true;
@@ -2393,6 +2406,9 @@ async function ogSave() {
   if (!n || !OG.dirty) return;
   const data = Object.fromEntries(OG_FIELDS.map(k => [k, String(OG.form[k] || '').trim()]));
   if (!OG_COLORS[data.color]) data.color = 'none';
+  const u = data.uid && S.users.find(x => x.uid === data.uid);
+  if (data.uid && !u) data.uid = '';
+  if (u) Object.assign(data, {name: String(u.name || '').slice(0, 30), phone: u.phone || ''}); // 계정이 지워져도 남도록 복사해 둔다
   const parentId = OG.form.parentId || '';
   if (!await ogCommit([['upd', n.id, {...data, ...ogStamp()}]], '저장했어요')) return;
   OG.dirty = false;
@@ -2419,9 +2435,28 @@ async function ogSeed() {
     .forEach(([label, color, us], gi) => {
       const g = add(root, gi, {title: label, color});
       us.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'))
-        .forEach((u, i) => add(g, i, {name: String(u.name || u.email).slice(0, 30), phone: u.phone || '', title: u.email === SUPER_ADMIN_EMAIL ? '최고 관리자' : ''}));
+        .forEach((u, i) => add(g, i, {uid: u.uid, name: String(u.name || u.email).slice(0, 30), phone: u.phone || '', title: u.email === SUPER_ADMIN_EMAIL ? '최고 관리자' : ''}));
     });
   await ogCommit(ops, `상자 ${ops.length}개를 만들었어요`);
+}
+
+// 아직 연결 안 된 상자 중 이름이 가입자 한 명과 똑같은 것 → [[상자, 계정]]
+function ogLinkCandidates() {
+  const byName = new Map();
+  S.users.forEach(u => { const k = (u.name || '').trim(); if (k) byName.set(k, byName.has(k) ? null : u); }); // 같은 이름 두 명이면 건너뛴다
+  const placed = new Set(OG.nodes.filter(n => n.uid).map(n => n.uid));
+  const out = [];
+  OG.nodes.forEach(n => {
+    const u = !n.uid && byName.get((n.name || '').trim());
+    if (u && !placed.has(u.uid)) { out.push([n, u]); placed.add(u.uid); }
+  });
+  return out;
+}
+async function ogAutoLink() {
+  const c = ogLinkCandidates();
+  if (!c.length) return;
+  if (!confirm(`이름이 같은 가입자와 상자 ${c.length}개를 연결할까요?\n\n${c.map(([n, u]) => `${n.name} → ${u.email}`).join('\n')}`)) return;
+  await ogCommit(c.map(([n, u]) => ['upd', n.id, {uid: u.uid, phone: u.phone || n.phone || '', ...ogStamp()}]), `${c.length}명을 계정과 연결했어요`);
 }
 
 /* ── 내보내기: 화면에 펼쳐 둔 그대로 SVG 로 다시 그려 PNG·인쇄 (MyeongRi orgExport 와 같은 방식) ── */
@@ -2442,7 +2477,8 @@ function ogSvg() {
       parts.push(`<path d="M${vx} ${up} V${y + ROW / 2 - 4} H${x}" fill="none" stroke="#d6cfe3" stroke-width="1.5"/>`);
     }
     parts.push(`<rect x="${x}" y="${y}" width="${BOX_W}" height="${ROW - 8}" rx="8" fill="${bg}" stroke="${line}"/>`);
-    const sub = [n.phone ? fmtPhone(n.phone) : '', n.note].filter(Boolean).join(' · ');
+    const u = ogUser(n);
+    const sub = [ogPhone(n) ? fmtPhone(ogPhone(n)) : '', u ? ogRoleNames(u).join('·') : '', n.note].filter(Boolean).join(' · ');
     parts.push(`<text x="${x + 12}" y="${y + (sub ? 17 : 24)}" font-family="sans-serif" font-size="14" font-weight="600" fill="#221a33">${esc(cut(ogLabel(n), 26))}</text>`);
     if (sub) parts.push(`<text x="${x + 12}" y="${y + 31}" font-family="sans-serif" font-size="11" fill="#7a7090">${esc(cut(sub, 44))}</text>`);
   });
@@ -2482,7 +2518,7 @@ function ogPrint() {
 function renderOrg() {
   if (!OG.nodes) { loadOrg(); return '<div class="empty">불러오는 중…</div>'; }
   const q = OG.search.trim().toLowerCase();
-  const hits = q ? new Set(OG.nodes.filter(n => [n.name, n.title, n.phone, n.note].join(' ').toLowerCase().includes(q)).map(n => n.id)) : null;
+  const hits = q ? new Set(OG.nodes.filter(n => [ogName(n), n.title, ogPhone(n), n.note, ...(ogUser(n) ? ogRoleNames(ogUser(n)) : [])].join(' ').toLowerCase().includes(q)).map(n => n.id)) : null;
   // 찾은 상자가 보이도록 위쪽 가지는 펼쳐서 그린다
   const open = new Set();
   if (hits) hits.forEach(id => { for (let p = ogNode(id).parentId; p && !open.has(p); p = ogNode(p)?.parentId) open.add(p); });
@@ -2495,11 +2531,12 @@ function renderOrg() {
         <button class="btn primary" data-og-addroot>＋ 첫 상자 만들기</button>
         ${canSeed ? '<button class="btn" data-og-seed>역할 등록 명단으로 초안 만들기</button>' : ''}</div>`;
   return `
-    <div class="page-title">조직도 <span class="sub">상자 ${OG.nodes.length}개 · 사람 ${OG.nodes.filter(n => n.name).length}명 ·
+    <div class="page-title">조직도 <span class="sub">상자 ${OG.nodes.length}개 · 사람 ${OG.nodes.filter(n => ogName(n)).length}명 · 계정 연결 ${OG.nodes.filter(ogUser).length}명 ·
       상자를 끌어 다른 상자 가운데(그 아래로)·위쪽 끝(앞으로)·아래쪽 끝(뒤로)에 놓으면 옮겨져요</span></div>
     <div class="toolbar">
-      <input type="search" id="og-search" placeholder="이름·직함·연락처로 찾기" value="${esc(OG.search)}">
+      <input type="search" id="og-search" placeholder="이름·직함·연락처·역할로 찾기" value="${esc(OG.search)}">
       <button class="btn sm" data-og-addroot>＋ 맨 위 상자</button>
+      ${ogLinkCandidates().length ? `<button class="btn sm primary" data-og-autolink>이름 같은 계정 연결 (${ogLinkCandidates().length})</button>` : ''}
       <button class="btn sm" data-og-foldall="0">모두 펼치기</button>
       <button class="btn sm" data-og-foldall="1">모두 접기</button>
       <button class="btn sm" data-og-png ${roots.length ? '' : 'disabled'}>PNG 저장</button>
@@ -2515,14 +2552,18 @@ function renderOrg() {
 function ogItem(n, hits, open) {
   const ks = ogKids(n.id);
   const shut = ks.length && OG.folded.has(n.id) && !open.has(n.id);
-  const sub = [n.phone ? fmtPhone(n.phone) : '', n.note].filter(Boolean).join(' · ');
+  const u = ogUser(n), name = ogName(n), phone = ogPhone(n);
+  const sub = [phone ? fmtPhone(phone) : '', n.note].filter(Boolean).join(' · ');
+  const tags = n.uid && !u ? '<span class="badge b-bad">계정 없음</span>'
+    : u ? (ogRoleNames(u).map(r => `<span class="badge b-stage">${r}</span>`).join('') || '<span class="badge b-muted">역할 없음</span>')
+      + (ogNoLink(u) ? '<span class="badge b-before">링크 없음</span>' : '') : '';
   const cls = (n.color && n.color !== 'none' ? ' og-c-' + n.color : '') + (n.id === OG.sel ? ' on' : '') + (hits && hits.has(n.id) ? ' hit' : '');
-  const main = n.name
-    ? esc(n.name) + (n.title ? `<span class="t">${esc(n.title)}</span>` : '')
+  const main = name
+    ? esc(name) + (n.title ? `<span class="t">${esc(n.title)}</span>` : '')
     : n.title ? esc(n.title) : '<span class="muted">(빈 상자)</span>';
   return `<li><div class="og-box${cls}" draggable="true" data-og-node="${n.id}">
       <button class="og-fold${ks.length ? '' : ' none'}" data-og-fold="${n.id}" title="${shut ? '펼치기' : '접기'}">${shut ? '+' : '−'}</button>
-      <div><div class="og-main">${main}</div>${sub ? `<div class="og-sub">${esc(sub)}</div>` : ''}</div>
+      <div><div class="og-main">${main}</div>${sub ? `<div class="og-sub">${esc(sub)}</div>` : ''}${tags ? `<div class="og-tags">${tags}</div>` : ''}</div>
       ${shut ? `<span class="og-cnt">+${ogBranch(n.id).length - 1}</span>` : ''}
     </div>${ks.length && !shut ? `<ul class="og-list">${ks.map(k => ogItem(k, hits, open)).join('')}</ul>` : ''}</li>`;
 }
@@ -2535,16 +2576,20 @@ function renderOrgEditor() {
   const f = OG.form;
   const sibs = ogKids(n.parentId || ''), i = sibs.findIndex(x => x.id === n.id);
   const parents = ogFlat().filter(({n: p}) => !ogUnder(p.id, n.id));
-  const people = [...new Set(S.users.map(u => u.name).filter(Boolean))];
   const branch = ogBranch(n.id).length;
+  const placed = new Set(OG.nodes.filter(x => x.uid && x.id !== n.id).map(x => x.uid));
+  const accounts = [...S.users].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+  const u = f.uid ? S.users.find(x => x.uid === f.uid) : null;
   return `<div class="panel og-edit">
     <h3>상자 편집</h3>
-    <div class="grid2">
-      <div class="field"><label>이름</label><input type="text" data-og-f="name" maxlength="30" list="og-people" value="${esc(f.name)}"></div>
-      <div class="field"><label>직함·부서</label><input type="text" data-og-f="title" maxlength="30" placeholder="예: 대표, 1팀장" value="${esc(f.title)}"></div>
-    </div>
-    <datalist id="og-people">${people.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
-    <div class="field"><label>연락처</label><input type="text" data-og-f="phone" maxlength="20" inputmode="tel" value="${esc(f.phone)}"></div>
+    <div class="field"><label>계정 연결 <span class="muted">— 연결하면 이름·전화번호·역할을 가입자 정보에서 가져와요</span></label><select data-og-f="uid">
+      <option value="">(연결 안 함 · 직접 입력)</option>
+      ${accounts.map(a => `<option value="${esc(a.uid)}" ${a.uid === f.uid ? 'selected' : ''}>${esc(a.name || a.email)}${a.roles && ogRoleNames(a).length ? ' · ' + ogRoleNames(a).join('·') : ''}${placed.has(a.uid) ? ' (조직도에 있음)' : ''}</option>`).join('')}
+    </select></div>
+    ${u ? renderOrgAccount(u, f.uid === n.uid) : `
+    <div class="field"><label>이름</label><input type="text" data-og-f="name" maxlength="30" value="${esc(f.name)}"></div>
+    <div class="field"><label>연락처</label><input type="text" data-og-f="phone" maxlength="20" inputmode="tel" value="${esc(f.phone)}"></div>`}
+    <div class="field"><label>직함·부서</label><input type="text" data-og-f="title" maxlength="30" placeholder="예: 대표, 1팀장" value="${esc(f.title)}"></div>
     <div class="field"><label>메모</label><input type="text" data-og-f="note" maxlength="200" placeholder="맡은 일 등" value="${esc(f.note)}"></div>
     <div class="field"><label>색</label><div class="og-swatches">${Object.entries(OG_COLORS).map(([k, [bg, line]]) =>
       `<button style="background:${bg};border-color:${line}" class="${f.color === k ? 'on' : ''}" data-og-color="${k}" title="${k}"></button>`).join('')}</div></div>
@@ -2570,7 +2615,30 @@ function renderOrgEditor() {
   </div>`;
 }
 
+// 연결된 계정 정보 + 역할 체크박스 (역할 등록 탭과 같은 데이터를 바꾼다)
+function renderOrgAccount(u, saved) {
+  const me = S.me, isSuperRow = u.email === SUPER_ADMIN_EMAIL;
+  const tog = ([k, label]) => `<label class="role-toggle"><input type="checkbox" data-og-role="${k}" data-uid="${esc(u.uid)}"
+      ${u.roles?.[k] ? 'checked' : ''} ${saved && (k !== 'admin' || me.isSuper) ? '' : 'disabled'}> ${label}</label>`;
+  return `<div class="og-acct">
+    <div><b>${esc(u.name || '')}</b> <span class="small muted">${esc(fmtPhone(u.phone) || '전화번호 없음')} · ${esc(u.email)}</span></div>
+    <div class="hint">이름·전화번호는 역할 등록 탭이나 본인의 ‘내 정보’에서 고쳐요</div>
+    <div style="margin-top:8px">${isSuperRow ? '<span class="badge b-stage">최고 관리자</span> ' : ''}${OG_ROLES.filter(([k]) => !(isSuperRow && k === 'admin')).map(tog).join('')}</div>
+    ${saved ? '' : '<div class="hint">먼저 저장하면 여기서 역할을 바꿀 수 있어요</div>'}
+    ${saved && u.roles?.caller ? `<div class="field" style="margin:10px 0 0"><label>카톡 오픈프로필 ${ogNoLink(u) ? '<span class="badge b-before">링크 없음</span>' : ''}</label>
+      <input class="inp" data-og-kakao="${esc(u.uid)}" placeholder="https://open.kakao.com/o/..." value="${esc(u.kakaoLink || '')}"></div>` : ''}
+  </div>`;
+}
+
 /* ── 조작 ── */
+document.addEventListener('change', async e => {
+  if (S.tab !== 'org') return;
+  const r = e.target.closest('input[data-og-role]');
+  if (r) { await setRole(r.dataset.uid, r.dataset.ogRole, r.checked); return; }
+  const k = e.target.closest('input[data-og-kakao]');
+  if (k && await saveKakaoLink(k.dataset.ogKakao, k.value)) render();
+});
+
 const ogLeave = () => !OG.dirty || confirm('고치던 내용을 저장하지 않고 넘어갈까요?');
 
 document.addEventListener('input', e => {
@@ -2578,6 +2646,7 @@ document.addEventListener('input', e => {
   const f = e.target.closest('[data-og-f]');
   if (f) {
     OG.form[f.dataset.ogF] = f.value; OG.dirty = true;
+    if (f.dataset.ogF === 'uid') { render(); return; }
     const b = $('[data-og-save]'); if (b) b.disabled = false;
     return;
   }
@@ -2632,6 +2701,7 @@ document.addEventListener('click', e => {
     ogSaveFolded(); render(); return;
   }
   if (t.closest('[data-og-seed]')) { ogSeed(); return; }
+  if (t.closest('[data-og-autolink]')) { ogAutoLink(); return; }
   if (t.closest('[data-og-png]')) { ogDownloadPng(); return; }
   if (t.closest('[data-og-print]')) { ogPrint(); return; }
 });
