@@ -192,6 +192,13 @@ td.num,th.num{text-align:right}
 .og-swatches button{width:28px;height:28px;border-radius:7px;border:1px solid #e4dfee;background:#fff}
 .og-swatches button.on{outline:2px solid var(--brand);outline-offset:1px}
 
+/* ── 내 정보 ── */
+.pf{text-align:left}
+.pf input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.pf-err{color:var(--bad);min-height:1.2em;margin:-4px 0 10px}
+.overlay.pf-overlay{justify-content:center;align-items:flex-start}
+.pf-overlay .center-box{margin-top:12vh;width:min(380px,calc(100% - 32px))}
+
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#221a33;color:#fff;padding:10px 18px;border-radius:8px;font-size:.86rem;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
 
@@ -232,16 +239,23 @@ td.num,th.num{text-align:right}
   </div>
 </div>
 
+<div id="view-profile" class="center-box hidden">
+  <h1>내 정보 입력</h1>
+  <p>처음 한 번만 적어주세요.<br>관리자 페이지에는 이 이름으로 보여요.</p>
+  <div id="profile-first"></div>
+</div>
+
 <div id="view-app" class="hidden">
   <header>
     <div class="logo">✦ 별빛타로</div>
     <nav id="nav"></nav>
-    <div class="me"><span class="email" id="me-label"></span><button data-action="logout">로그아웃</button></div>
+    <div class="me"><span class="email" id="me-label"></span><button data-action="profile">내 정보</button><button data-action="logout">로그아웃</button></div>
   </header>
   <main id="main"></main>
 </div>
 
 <div id="drawer-root"></div>
+<div id="modal-root"></div>
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -312,7 +326,7 @@ function toast(msg) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200);
 }
 function show(id) {
-  ['view-loading','view-login','view-pending','view-app'].forEach(v => $('#' + v).classList.toggle('hidden', v !== id));
+  ['view-loading','view-login','view-pending','view-profile','view-app'].forEach(v => $('#' + v).classList.toggle('hidden', v !== id));
 }
 const pct = (a, b) => b ? Math.round(a / b * 100) : null;
 
@@ -371,32 +385,93 @@ onAuthStateChanged(auth, async user => {
   try {
     const ref = doc(db, 'users', user.uid);
     const snap = await getDoc(ref);
-    const profile = {name: user.displayName || user.email, photoURL: user.photoURL || ''};
+    const data = snap.exists() ? snap.data() : {};
+    // 구글 이름은 닉네임인 경우가 많아 처음 가입할 때 임시로만 쓴다. 이후로는 본인·관리자가 고친 이름을 덮어쓰지 않는다
     if (!snap.exists()) {
-      await setDoc(ref, {email: user.email, ...profile, createdAt: serverTimestamp(), lastLoginAt: serverTimestamp()});
+      await setDoc(ref, {email: user.email, name: user.displayName || user.email, photoURL: user.photoURL || '',
+        createdAt: serverTimestamp(), lastLoginAt: serverTimestamp()});
     } else {
-      await updateDoc(ref, {...profile, lastLoginAt: serverTimestamp()});
+      await updateDoc(ref, {photoURL: user.photoURL || '', lastLoginAt: serverTimestamp()});
     }
-    const roles = (snap.exists() && snap.data().roles) || {};
+    const roles = data.roles || {};
     const isSuper = user.email === SUPER_ADMIN_EMAIL && user.emailVerified;
     S.me = {
-      uid: user.uid, email: user.email, name: profile.name, roles, isSuper,
-      kakaoLink: (snap.exists() && snap.data().kakaoLink) || '',
+      uid: user.uid, email: user.email, name: data.name || user.displayName || user.email, phone: data.phone || '', roles, isSuper,
+      kakaoLink: data.kakaoLink || '',
       isAdmin: isSuper || !!roles.admin, isLeader: !!roles.leader, isCaller: !!roles.caller,
       isAccounting: user.emailVerified && LEDGER_EMAILS.includes((user.email || '').toLowerCase()),
     };
-    if (!S.me.isAdmin && !S.me.isLeader && !S.me.isCaller && !S.me.isAccounting) {
-      $('#pending-email').textContent = user.email;
-      show('view-pending');
+    // 실명·전화번호를 아직 안 적었으면 (기존 가입자 포함) 먼저 받는다
+    if (!data.profileAt) {
+      $('#profile-first').innerHTML = profileForm(S.me, true);
+      show('view-profile');
+      $('#profile-first input[name=name]').select();
       return;
     }
-    await loadAll();
-    show('view-app');
-    render();
+    await enterApp();
   } catch (e) {
     console.error(e);
     show('view-login');
     $('#login-error').textContent = '데이터를 불러오지 못했어요: ' + (e.code || e.message);
+  }
+});
+
+async function enterApp() {
+  const me = S.me;
+  if (!me.isAdmin && !me.isLeader && !me.isCaller && !me.isAccounting) {
+    $('#pending-email').textContent = me.email;
+    show('view-pending');
+    return;
+  }
+  await loadAll();
+  show('view-app');
+  render();
+}
+
+/* ── 내 정보 (이름·전화번호) — 첫 로그인 때 한 번 받고, 상단 '내 정보'에서 언제든 고친다 ── */
+const PHONE_RE = /^01[0-9]{8,9}$/;
+const profileForm = (u, first) => `<form class="pf" data-profile-form="${first ? 'first' : 'edit'}">
+    <div class="field"><label>이름 (실명)</label><input type="text" name="name" maxlength="20" autocomplete="name" value="${esc(u.name)}"></div>
+    <div class="field"><label>전화번호</label><input type="tel" name="phone" maxlength="13" inputmode="tel" autocomplete="tel" placeholder="010-1234-5678" value="${esc(fmtPhone(u.phone))}"></div>
+    <p class="small pf-err"></p>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn primary" type="submit">저장</button>
+      ${first ? '<button class="btn" type="button" data-action="logout">로그아웃</button>' : '<button class="btn" type="button" data-profile-close>닫기</button>'}
+    </div>
+  </form>`;
+const closeProfile = () => { $('#modal-root').innerHTML = ''; };
+
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-action=profile]')) {
+    $('#modal-root').innerHTML = `<div class="overlay pf-overlay" data-profile-bg><div class="center-box"><h1>내 정보</h1>
+      <p>${esc(S.me.email)}</p>${profileForm(S.me, false)}</div></div>`;
+    $('#modal-root input[name=name]').focus();
+    return;
+  }
+  if (e.target.closest('[data-profile-close]') || e.target.matches('[data-profile-bg]')) closeProfile();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modal-root').innerHTML) closeProfile(); });
+
+document.addEventListener('submit', async e => {
+  const f = e.target.closest('[data-profile-form]');
+  if (!f) return;
+  e.preventDefault();
+  const name = f.elements.name.value.trim(), phone = f.elements.phone.value.replace(/[^0-9]/g, '');
+  const err = msg => { f.querySelector('.pf-err').textContent = msg; };
+  if (!name) return err('이름을 적어주세요');
+  if (!PHONE_RE.test(phone)) return err('전화번호를 확인해주세요 (010으로 시작하는 숫자)');
+  const btn = f.querySelector('[type=submit]');
+  btn.disabled = true;
+  try {
+    await updateDoc(doc(db, 'users', S.me.uid), {name, phone, profileAt: serverTimestamp()});
+    Object.assign(S.me, {name, phone});
+    const u = S.users.find(x => x.uid === S.me.uid);
+    if (u) Object.assign(u, {name, phone, profileAt: Timestamp.now()});
+    if (f.dataset.profileForm === 'first') { show('view-loading'); await enterApp(); return; }
+    closeProfile(); toast('내 정보를 저장했어요'); render();
+  } catch (x) {
+    btn.disabled = false;
+    err('저장 실패: ' + (x.code || x.message));
   }
 });
 
@@ -419,6 +494,7 @@ async function loadAll() {
     S.applications = as.docs.map(d => ({id: d.id, ...d.data()}));
     S.seminars = ss.docs.map(d => ({id: d.id, ...d.data()}));
     await syncCustomers();
+    await syncStaffNames();
     await reconcileSeminarCounts();
   } else {
     const qs = [];
@@ -497,6 +573,26 @@ async function syncCustomers() {
   if (writes.length) {
     const cs = await getDocs(collection(db, 'customers'));
     S.customers = new Map(cs.docs.map(d => [d.id, {id: d.id, ...d.data()}]));
+  }
+}
+
+// 고객 문서에 복사해 둔 콜러·리더 이름을 지금 이름으로 맞춘다 (본인이나 관리자가 이름을 고친 뒤)
+async function syncStaffNames() {
+  const nameOf = new Map(S.users.map(u => [u.uid, u.name]));
+  const writes = [];
+  S.customers.forEach(c => {
+    const patch = {};
+    if (c.callerUid && nameOf.get(c.callerUid) && c.callerName !== nameOf.get(c.callerUid)) patch.callerName = nameOf.get(c.callerUid);
+    if (c.leaderUid && nameOf.get(c.leaderUid) && c.leaderName !== nameOf.get(c.leaderUid)) patch.leaderName = nameOf.get(c.leaderUid);
+    if (Object.keys(patch).length) writes.push([c, patch]);
+  });
+  for (let i = 0; i < writes.length; i += 400) {
+    const batch = writeBatch(db);
+    writes.slice(i, i + 400).forEach(([c, patch]) => batch.update(doc(db, 'customers', c.id), patch));
+    try {
+      await batch.commit();
+      writes.slice(i, i + 400).forEach(([c, patch]) => Object.assign(c, patch));
+    } catch (e) { console.warn('담당자 이름 맞추기 실패', e.code || e.message); }
   }
 }
 
@@ -1384,7 +1480,9 @@ function renderStaff() {
     const tog = (role, label, allowed) => `<label class="role-toggle">
         <input type="checkbox" data-role="${role}" data-uid="${esc(u.uid)}" ${r[role] ? 'checked' : ''} ${allowed ? '' : 'disabled'}> ${label}</label>`;
     return `<tr>
-      <td><b>${esc(u.name)}</b></td><td class="muted">${esc(u.email)}</td>
+      <td><input class="inp" data-user-name="${esc(u.uid)}" maxlength="20" value="${esc(u.name)}" style="min-width:100px;font-weight:600">${u.profileAt ? '' : '<div><span class="badge b-before">본인 정보 미입력</span></div>'}</td>
+      <td><input class="inp" data-user-phone="${esc(u.uid)}" maxlength="13" inputmode="tel" placeholder="010-0000-0000" value="${esc(fmtPhone(u.phone))}" style="min-width:130px"></td>
+      <td class="muted">${esc(u.email)}</td>
       <td>${isSuperRow ? '<span class="badge b-stage">최고 관리자</span> ' : tog('admin', '관리자', me.isSuper)}${tog('leader', '리더', true)}${tog('caller', '콜러', true)}${tog('seminarStaff', '세미나 스태프', true)}${tog('marketing', '마케팅', true)}</td>
       <td class="muted small">${fmt(u.createdAt, false)}</td><td class="muted small">${fmt(u.lastLoginAt)}</td>
       <td><input class="inp" data-instructor="${esc(u.uid)}" maxlength="20" placeholder="이름" value="${esc(u.instructor || '')}" style="min-width:110px"></td>
@@ -1425,9 +1523,9 @@ function renderStaff() {
     </div>
 
 
-    <div class="page-title" style="margin-top:8px">가입자 목록 <span class="sub">관리자 페이지에 구글로 로그인한 사람들 — 체크해서 역할을 지정하세요</span></div>
+    <div class="page-title" style="margin-top:8px">가입자 목록 <span class="sub">관리자 페이지에 구글로 로그인한 사람들 — 체크해서 역할을 지정하세요 · 이름·전화번호 칸을 고치면 바로 저장돼요</span></div>
     <div class="table-wrap"><table>
-      <thead><tr><th>이름</th><th>이메일</th><th>역할 (여러 개 선택 가능)</th><th>가입</th><th>최근 로그인</th><th>담당교관</th></tr></thead>
+      <thead><tr><th>이름</th><th>전화번호</th><th>이메일</th><th>역할 (여러 개 선택 가능)</th><th>가입</th><th>최근 로그인</th><th>담당교관</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     <div class="muted small" style="margin-top:8px">새로 등록할 사람에게 이 페이지 주소를 알려주고 구글 로그인을 한 번 하게 하면 목록에 나타나요.</div>`;
 }
@@ -1443,6 +1541,8 @@ document.addEventListener('change', async e => {
   if (b) await setRole(b.dataset.uid, b.dataset.role, b.checked);
   const kl = e.target.closest('input[data-kakao-link]');
   if (kl && await saveKakaoLink(kl.dataset.kakaoLink, kl.value)) render();
+  const un = e.target.closest('input[data-user-name], input[data-user-phone]');
+  if (un) await saveUserInfo(un);
   const ins = e.target.closest('input[data-instructor]');
   if (ins) {
     const u = S.users.find(x => x.uid === ins.dataset.instructor);
@@ -1454,6 +1554,28 @@ document.addEventListener('change', async e => {
     } catch (err) { toast('저장 실패: ' + (err.code || err.message)); }
   }
 });
+
+// 관리자가 가입자 이름·전화번호를 고친다
+async function saveUserInfo(el) {
+  const isName = 'userName' in el.dataset, uid = isName ? el.dataset.userName : el.dataset.userPhone;
+  const u = S.users.find(x => x.uid === uid);
+  const k = isName ? 'name' : 'phone';
+  const v = isName ? el.value.trim() : el.value.replace(/[^0-9]/g, '');
+  const reset = () => { el.value = isName ? u.name : fmtPhone(u.phone); };
+  if (isName ? !v : v && !PHONE_RE.test(v)) { toast(isName ? '이름을 비울 수 없어요' : '전화번호를 확인해주세요'); reset(); return; }
+  if ((u[k] || '') === v) { reset(); return; }
+  try {
+    await updateDoc(doc(db, 'users', uid), {[k]: v});
+    u[k] = v;
+    if (uid === S.me.uid) S.me[k] = v;
+    if (isName) await syncStaffNames();
+    toast(`${u.name}: ${isName ? '이름' : '전화번호'} 저장`);
+    render();
+  } catch (err) {
+    toast('저장 실패: ' + (err.code || err.message));
+    reset();
+  }
+}
 
 async function setRole(uid, role, on) {
   const u = S.users.find(x => x.uid === uid);
@@ -2297,7 +2419,7 @@ async function ogSeed() {
     .forEach(([label, color, us], gi) => {
       const g = add(root, gi, {title: label, color});
       us.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'))
-        .forEach((u, i) => add(g, i, {name: String(u.name || u.email).slice(0, 30), title: u.email === SUPER_ADMIN_EMAIL ? '최고 관리자' : ''}));
+        .forEach((u, i) => add(g, i, {name: String(u.name || u.email).slice(0, 30), phone: u.phone || '', title: u.email === SUPER_ADMIN_EMAIL ? '최고 관리자' : ''}));
     });
   await ogCommit(ops, `상자 ${ops.length}개를 만들었어요`);
 }
