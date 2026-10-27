@@ -1594,6 +1594,7 @@ async function setRole(uid, role, on) {
     await updateDoc(doc(db, 'users', uid), {roles, rolesUpdatedAt: serverTimestamp()});
     u.roles = roles;
     toast(`${u.name}: ${labels[role]} ${on ? '등록' : '해제'}`);
+    if (on) await ogPlaceForRole(uid, role);
   } catch (err) {
     toast('변경 실패: ' + (err.code || err.message));
   }
@@ -2277,18 +2278,27 @@ const OG = {
   drag: null,          // 끌고 있는 상자 id
 };
 
+async function fetchOrg() {
+  const snap = await getDocs(collection(db, 'orgChart'));
+  OG.nodes = snap.docs.map(d => ({id: d.id, ...d.data()}));
+}
 async function loadOrg() {
   if (OG.loading) return;
   OG.loading = true;
   try {
-    const snap = await getDocs(collection(db, 'orgChart'));
-    OG.nodes = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    await fetchOrg();
     try { OG.folded = new Set(JSON.parse(localStorage.getItem('og-folded') || '[]')); } catch {}
   } catch (e) {
     toast('조직도를 불러오지 못했어요: ' + (e.code || e.message));
   }
   OG.loading = false;
   if (S.tab === 'org' && OG.nodes) render();
+  // 이름이 가입자 한 명과 똑같은 상자는 알아서 계정과 연결한다 (역할·위치는 안 바뀐다)
+  if (OG.nodes && ogLinkCandidates().length) {
+    const c = ogLinkCandidates();
+    await ogCommit(c.map(([n, u]) => ['upd', n.id, {uid: u.uid, phone: u.phone || n.phone || '', ...ogStamp()}]),
+      `이름이 같은 ${c.length}명을 계정과 연결했어요`);
+  }
 }
 const ogSaveFolded = () => { try { localStorage.setItem('og-folded', JSON.stringify([...OG.folded])); } catch {} };
 
@@ -2459,6 +2469,35 @@ async function ogAutoLink() {
   await ogCommit(c.map(([n, u]) => ['upd', n.id, {uid: u.uid, phone: u.phone || n.phone || '', ...ogStamp()}]), `${c.length}명을 계정과 연결했어요`);
 }
 
+// 역할을 받으면 조직도에도 들어간다: 콜러 → '콜링' 팀, 리더 → '리더' 팀 (이름 없이 직함만 있는 상자)
+const OG_TEAM = {caller: '콜링', leader: '리더'};
+const ogTeamBox = role => OG_TEAM[role] && OG.nodes.find(n => !n.uid && !n.name && (n.title || '').includes(OG_TEAM[role]));
+const ogTeamRole = u => ['caller', 'leader'].find(r => u.roles?.[r] && ogTeamBox(r));
+// 역할은 있는데 조직도에 연결된 상자가 없는 사람
+const ogMissing = () => {
+  const placed = new Set(OG.nodes.filter(n => n.uid).map(n => n.uid));
+  return S.users.filter(u => !placed.has(u.uid) && (u.email === SUPER_ADMIN_EMAIL || OG_ROLES.some(([k]) => u.roles?.[k])));
+};
+// u 를 역할에 맞는 팀 상자 아래에 넣는다 (팀 상자가 없으면 맨 위 줄). 이미 있으면 아무것도 안 한다
+async function ogPlace(u, quiet = false) {
+  if (OG.nodes.some(n => n.uid === u.uid)) return false;
+  const role = ogTeamRole(u), team = role ? ogTeamBox(role) : null, pid = team ? team.id : '';
+  const id = doc(collection(db, 'orgChart')).id;
+  const ok = await ogCommit([['set', id, {...ogBlank(), uid: u.uid, name: String(u.name || u.email).slice(0, 30), phone: u.phone || '',
+    parentId: pid, order: ogKids(pid).length, createdAt: Date.now(), ...ogStamp()}]],
+    quiet ? '' : `${u.name}님을 ${team ? team.title : '맨 위 줄'}에 넣었어요`);
+  if (ok && pid) { OG.folded.delete(pid); ogSaveFolded(); }
+  return ok;
+}
+// 역할 등록에서 콜러·리더를 켜면 불린다
+async function ogPlaceForRole(uid, role) {
+  if (!OG_TEAM[role]) return;
+  try { if (!OG.nodes) await fetchOrg(); } catch { return; }
+  const u = S.users.find(x => x.uid === uid);
+  if (!u || OG.nodes.some(n => n.uid === uid) || !ogTeamBox(role)) return;
+  if (await ogPlace(u, true)) toast(`${u.name}: ${role === 'caller' ? '콜러' : '리더'} 등록 · 조직도 ${ogTeamBox(role).title}에 추가`);
+}
+
 /* ── 내보내기: 화면에 펼쳐 둔 그대로 SVG 로 다시 그려 PNG·인쇄 (MyeongRi orgExport 와 같은 방식) ── */
 function ogSvg() {
   const rows = ogFlat(true), ROW = 46, INDENT = 26, BOX_W = 300, PAD = 20, top = 56;
@@ -2536,12 +2575,12 @@ function renderOrg() {
     <div class="toolbar">
       <input type="search" id="og-search" placeholder="이름·직함·연락처·역할로 찾기" value="${esc(OG.search)}">
       <button class="btn sm" data-og-addroot>＋ 맨 위 상자</button>
-      ${ogLinkCandidates().length ? `<button class="btn sm primary" data-og-autolink>이름 같은 계정 연결 (${ogLinkCandidates().length})</button>` : ''}
       <button class="btn sm" data-og-foldall="0">모두 펼치기</button>
       <button class="btn sm" data-og-foldall="1">모두 접기</button>
       <button class="btn sm" data-og-png ${roots.length ? '' : 'disabled'}>PNG 저장</button>
       <button class="btn sm" data-og-print ${roots.length ? '' : 'disabled'}>인쇄·PDF</button>
     </div>
+    ${renderOrgMissing()}
     ${hits ? `<div class="small muted" style="margin:-4px 0 10px">찾은 상자 ${hits.size}개 (점선 표시)</div>` : ''}
     <div class="og-layout">
       <div class="og-tree">${tree}</div>
@@ -2612,6 +2651,18 @@ function renderOrgEditor() {
       <button class="btn sm" data-og-step="1" ${i >= sibs.length - 1 ? 'disabled' : ''}>▼ 아래로</button>
       <button class="btn sm danger" data-og-del style="margin-left:auto">${branch > 1 ? `가지째 지우기 (${branch})` : '지우기'}</button>
     </div>
+  </div>`;
+}
+
+function renderOrgMissing() {
+  const ms = ogMissing();
+  if (!ms.length || !OG.nodes.length) return '';
+  const where = u => { const r = ogTeamRole(u); return r ? ogTeamBox(r).title : '맨 위 줄'; };
+  return `<div class="panel" style="padding:12px 16px">
+    <h3 style="margin-bottom:8px">조직도에 없는 사람 ${ms.length}명 <span class="muted small">역할은 있는데 연결된 상자가 없어요 · 넣은 뒤 끌어서 옮길 수 있어요</span>
+      <button class="btn sm primary" data-og-placeall style="margin-left:8px">모두 넣기</button></h3>
+    ${ms.map(u => `<span class="staff-chip">${esc(u.name || u.email)} <span class="small muted">${ogRoleNames(u).join('·')}</span>
+      <button class="btn sm" data-og-place="${esc(u.uid)}" title="${esc(where(u))}에 넣기" style="padding:0 8px;font-size:.74rem">→ ${esc(where(u))}</button></span>`).join('')}
   </div>`;
 }
 
@@ -2702,6 +2753,14 @@ document.addEventListener('click', e => {
   }
   if (t.closest('[data-og-seed]')) { ogSeed(); return; }
   if (t.closest('[data-og-autolink]')) { ogAutoLink(); return; }
+  const pl = t.closest('[data-og-place]');
+  if (pl) { const u = S.users.find(x => x.uid === pl.dataset.ogPlace); if (u) ogPlace(u); return; }
+  if (t.closest('[data-og-placeall]')) {
+    const ms = ogMissing();
+    if (!confirm(`${ms.length}명을 역할에 맞는 팀(콜러 → 콜링팀, 리더 → 리더팀, 그 외 → 맨 위 줄)에 넣을까요?`)) return;
+    (async () => { for (const u of ms) await ogPlace(u, true); toast(`${ms.length}명을 넣었어요`); })();
+    return;
+  }
   if (t.closest('[data-og-png]')) { ogDownloadPng(); return; }
   if (t.closest('[data-og-print]')) { ogPrint(); return; }
 });
