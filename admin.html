@@ -232,6 +232,7 @@ td.num,th.num{text-align:right}
     Google로 로그인
   </button>
   <p class="small muted" id="login-error" style="margin:14px 0 0"></p>
+  <div id="inapp-box" class="small" style="margin:16px 0 0;line-height:1.6"></div>
 </div>
 
 <div id="view-pending" class="center-box hidden">
@@ -382,6 +383,35 @@ $('#btn-login').addEventListener('click', async () => {
 document.addEventListener('click', e => {
   if (e.target.closest('[data-action=logout]')) signOut(auth).then(() => location.reload());
 });
+
+// 카톡·텔레그램·인스타 같은 앱 안의 브라우저에서는 구글 로그인 창이 결과를 돌려주지 못해 로그인이 끝나지 않는다.
+// 알아볼 수 있는 앱이면 외부 브라우저로 넘기고, 아이폰 텔레그램처럼 Safari와 구별이 안 되는 경우를 위해 안내는 늘 보여 준다.
+(() => {
+  const ua = navigator.userAgent, url = location.href;
+  const isAndroid = /Android/i.test(ua), isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const app = /KAKAOTALK/i.test(ua) ? '카카오톡'
+    : (window.TelegramWebviewProxy || window.TelegramWebview || /Telegram/i.test(ua)) ? '텔레그램'
+    : /Instagram/i.test(ua) ? '인스타그램' : /FBAN|FBAV|FB_IAB/i.test(ua) ? '페이스북'
+    : /\bLine\//i.test(ua) ? '라인' : /NAVER\(inapp|DaumApps|everytimeApp|BAND\//i.test(ua) ? '앱' : '';
+  const chromeIntent = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+  if (app === '카카오톡') { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url); }
+  else if (app === '라인' && !/openExternalBrowser=1/.test(url)) { location.href = url + (url.includes('?') ? '&' : '?') + 'openExternalBrowser=1'; }
+  else if (app && isAndroid) { location.href = chromeIntent; }
+  const browser = isIOS ? 'Safari' : '크롬';
+  const how = isIOS ? '오른쪽 아래 나침반(또는 ··· → Safari로 열기)을 누르거나' : '오른쪽 위 ⋮ → 다른 브라우저로 열기를 누르거나';
+  $('#inapp-box').innerHTML = `<div style="${app ? 'background:#fff6e5;border:1px solid #f0c674;border-radius:10px;padding:10px 12px;' : ''}text-align:left">
+      ${app ? `<b>${app} 안에서 열려 있어서 로그인이 안 될 수 있어요.</b><br>` : '<span class="muted">계정을 골랐는데 다시 이 화면으로 돌아오면 (텔레그램·카톡 등에서 연 경우)</span><br>'}
+      <span class="${app ? '' : 'muted'}">${how}, 링크를 복사해 ${browser}에 붙여 넣어 열어 주세요.</span>
+      <div class="btn-row" style="margin-top:8px;justify-content:center">
+        <button class="btn sm" type="button" id="btn-copy-url">링크 복사</button>
+        ${isAndroid ? `<a class="btn sm" href="${chromeIntent}">크롬으로 열기</a>` : ''}
+      </div></div>`;
+  $('#btn-copy-url').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(url); }
+    catch { const t = document.createElement('textarea'); t.value = url; document.body.append(t); t.select(); document.execCommand('copy'); t.remove(); }
+    $('#btn-copy-url').textContent = '복사했어요 ✓';
+  });
+})();
 
 onAuthStateChanged(auth, async user => {
   if (!user) { show('view-login'); return; }
