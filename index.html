@@ -709,9 +709,20 @@ const FIREBASE_CONFIG = {
 window.fbReady = FIREBASE_CONFIG ? (async () => {
   try {
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-    const { getFirestore, collection, addDoc, doc, updateDoc, serverTimestamp } =
+    const { getFirestore, collection, addDoc, doc, setDoc, updateDoc, serverTimestamp, increment } =
       await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
     const db = getFirestore(initializeApp(FIREBASE_CONFIG));
+    // 방문 기록: 브라우저 세션당 하루 한 번, visitDays/{날짜}_{유입 코드} 카운터에 1을 더한다 (한국 날짜 기준)
+    // 유입 코드는 아래 일반 스크립트(SRC)가 먼저 sessionStorage 에 넣어 둔다
+    try {
+      const day = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
+      if (!sessionStorage.getItem('bt_visit_' + day)) {
+        sessionStorage.setItem('bt_visit_' + day, '1');
+        const src = sessionStorage.getItem('bt_src') || '';
+        setDoc(doc(db, 'visitDays', `${day}_${src || 'direct'}`), {day, src, n: increment(1)}, {merge: true})
+          .catch(e => console.warn('방문 기록 실패:', e.code || e.message));
+      }
+    } catch (e) {}
     return {
       async createReading(data) {
         const ref = await addDoc(collection(db, 'readings'), {

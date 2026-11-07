@@ -527,6 +527,10 @@ async function loadAll() {
     S.customers = new Map(cs.docs.map(d => [d.id, {id: d.id, ...d.data()}]));
     S.applications = as.docs.map(d => ({id: d.id, ...d.data()}));
     S.seminars = ss.docs.map(d => ({id: d.id, ...d.data()}));
+    // 방문 수 (날짜·유입 코드별 카운터). 못 읽어도 나머지 화면은 그대로 보여 준다
+    S.visits = await getDocs(collection(db, 'visitDays'))
+      .then(s => s.docs.map(d => d.data()))
+      .catch(e => { console.warn('방문 수를 불러오지 못했어요:', e.code || e.message); return null; });
     await syncCustomers();
     await syncStaffNames();
     await reconcileSeminarCounts();
@@ -1430,12 +1434,14 @@ function renderDashboard() {
 
   // 유입코드별
   const src = {};
-  const bucket = k => (src[k || '(직접)'] ||= {r: 0, a: 0, c: 0, ok: 0});
+  const bucket = k => (src[k || '(직접)'] ||= {v: 0, r: 0, a: 0, c: 0, ok: 0});
+  (S.visits || []).forEach(v => { bucket(v.src).v += v.n || 0; });
   rs.forEach(r => bucket(r.src).r++);
   S.applications.forEach(a => bucket(a.src).a++);
   cs.forEach(c => { const b = bucket(c.src); b.c++; if (c.confirmedAt) b.ok++; });
-  const srcRows = Object.entries(src).sort((a, b) => (b[1].r + b[1].a) - (a[1].r + a[1].a)).map(([k, v]) =>
-    `<tr><td>${esc(k)}</td><td>${v.r}</td><td>${v.a}</td><td>${v.c}</td><td>${v.ok}</td></tr>`).join('');
+  const srcRows = Object.entries(src).sort((a, b) => (b[1].v + b[1].r + b[1].a) - (a[1].v + a[1].r + a[1].a)).map(([k, v]) =>
+    `<tr><td>${esc(k)}</td><td>${S.visits ? v.v : '-'}</td><td>${v.r}</td><td>${v.a}</td><td>${v.c}</td><td>${v.ok}</td></tr>`).join('');
+  const visitSince = (S.visits || []).map(v => v.day).sort()[0];
 
   // 실적 점수
   const sc = {};
@@ -1491,9 +1497,10 @@ function renderDashboard() {
     </div>
 
     <div class="panel"><h3>유입 경로별</h3>
-      ${srcRows ? `<div class="table-wrap"><table><thead><tr><th>유입 코드</th><th>리딩</th><th>세미나 신청</th><th>고객</th><th>확답</th></tr></thead><tbody>${srcRows}</tbody></table></div>`
+      ${srcRows ? `<div class="table-wrap"><table><thead><tr><th>유입 코드</th><th>방문</th><th>리딩</th><th>세미나 신청</th><th>고객</th><th>확답</th></tr></thead><tbody>${srcRows}</tbody></table></div>`
         : '<div class="muted small">데이터 없음</div>'}
-      <div class="muted small" style="margin-top:8px">링크 뒤에 <span class="code">?src=insta</span> 처럼 붙여 배포하면 여기서 구분돼요.</div>
+      <div class="muted small" style="margin-top:8px">링크 뒤에 <span class="code">?src=insta</span> 처럼 붙여 배포하면 여기서 구분돼요.
+        방문은 리딩 사이트를 연 사람 수예요 (같은 사람은 하루 한 번만)${visitSince ? ` · ${esc(visitSince)}부터 집계` : S.visits ? ' · 아직 집계된 방문이 없어요' : ' · 방문 수를 불러오지 못했어요'}.</div>
     </div>`;
 }
 
