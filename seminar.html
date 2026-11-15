@@ -80,6 +80,37 @@ h2::before{content:'✦';color:var(--gold);font-size:.8rem}
 .alt{display:block;text-align:center;margin-top:22px;font-size:.85rem;color:var(--accent)}
 .notice{text-align:center;font-size:.72rem;color:var(--muted);margin-top:26px;line-height:1.7}
 .hidden{display:none!important}
+/* 루미 안내: 말풍선 + 포즈 */
+.guide{display:flex;align-items:flex-end;justify-content:flex-end;gap:6px;margin:-4px 0 10px}
+.guide .lumi-pose{position:relative;flex-shrink:0;transform-origin:50% 100%}
+.guide .lumi-pose img{display:block;height:100%;width:auto;filter:drop-shadow(0 0 14px rgba(155,127,212,.45))}
+.guide-sessions .lumi-pose{height:132px}
+.guide-form .lumi-pose{height:100px}
+.bubble{
+  position:relative;background:#f7f2ff;color:#2a1650;font-size:.92rem;font-weight:500;line-height:1.5;
+  padding:10px 14px;border-radius:16px;margin-bottom:34px;max-width:240px;word-break:keep-all;
+  box-shadow:0 0 18px rgba(232,208,138,.35);
+}
+.bubble::after{content:'';position:absolute;right:-7px;bottom:16px;border:8px solid transparent;border-left-color:#f7f2ff;border-right:0}
+.bubble b{color:#6b3fc2}
+.wand-spark{position:absolute;left:-4%;top:31%;width:18px;height:18px;pointer-events:none;
+  background:radial-gradient(circle,#fff6d8 0,#ffd977 35%,transparent 70%);border-radius:50%;animation:twinkle 1.4s ease-in-out infinite}
+.guide-form{position:sticky;top:0;z-index:3;margin:-8px -8px 12px;padding:8px 8px 4px;
+  background:linear-gradient(180deg,rgba(14,6,32,.98) 78%,rgba(14,6,32,0));border-radius:12px}
+.guide-done{justify-content:center;margin:0 0 6px}
+.guide-done .lumi-pose{height:170px}
+.guide-done .bubble{margin-bottom:96px;font-size:1rem}
+.pop{animation:pop .7s cubic-bezier(.2,.9,.3,1.35) both}
+.bubble.say{animation:bubbleIn .35s ease-out both}
+.hop{animation:hop .9s ease-out 2}
+.session.hint{animation:hintGlow 1.6s ease-in-out infinite}
+.submit.ready{animation:hintGlow 1.6s ease-in-out infinite;background:rgba(201,168,76,.28)}
+@keyframes pop{0%{transform:translateY(40px) scale(0);opacity:0}60%{transform:translateY(-8px) scale(1.12);opacity:1}80%{transform:scale(.96)}100%{transform:none}}
+@keyframes bubbleIn{from{opacity:0;transform:translateY(6px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes hop{0%,100%{transform:none}30%{transform:translateY(-22px) rotate(-3deg)}55%{transform:translateY(0) scale(1.04,.96)}}
+@keyframes twinkle{50%{transform:scale(1.5);opacity:.5}}
+@keyframes hintGlow{50%{box-shadow:0 0 22px rgba(232,208,138,.55);border-color:var(--gold2)}}
+@media (prefers-reduced-motion:reduce){.pop,.bubble.say,.hop,.wand-spark,.session.hint,.submit.ready{animation:none}}
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
 @media(max-width:400px){ .fact{padding:10px 4px} .fact b{font-size:.84rem} h1{font-size:1.45rem} }
 @media(max-width:320px){ .facts{grid-template-columns:1fr} }
@@ -99,15 +130,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
 
   <div class="panel" id="panel-sessions">
     <h2>일정 선택</h2>
+    <div class="guide guide-sessions" aria-hidden="true">
+      <div class="bubble say" style="animation-delay:.55s">여기 누르고<br><b>파티에서 만나!</b> ✨</div>
+      <div class="lumi-pose pop" style="animation-delay:.2s"><img src="/lumi-point.webp" alt="" width="89" height="132"><span class="wand-spark"></span></div>
+    </div>
     <div id="sessions"><div class="empty">일정을 불러오는 중이에요...</div></div>
   </div>
 
   <form class="panel hidden" id="panel-form" novalidate>
     <h2>신청 정보</h2>
+    <div class="guide guide-form" aria-hidden="true">
+      <div class="bubble say" id="form-bubble">별처럼 빛나는 당신의 이름은 뭐야?</div>
+      <div class="lumi-pose" id="form-lumi"><img src="/lumi-ask.webp" alt="" width="65" height="100"><span class="wand-spark hidden"></span></div>
+    </div>
     <div class="selected-label" id="selected-label"></div>
     <div class="field">
-      <label for="f-name">불러드릴 이름</label>
-      <input id="f-name" type="text" maxlength="20" placeholder="닉네임도 괜찮아요" autocomplete="name">
+      <label for="f-name">별처럼 빛나는 당신의 이름은 뭐야?</label>
+      <input id="f-name" type="text" maxlength="20" placeholder="닉네임도 괜찮아" autocomplete="name">
     </div>
     <div class="field">
       <label for="f-phone">전화번호</label>
@@ -115,8 +154,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
       <div class="hint">신청하시면 별빛루미가 이 번호로 안내 문자를 보내드려요.</div>
     </div>
     <div class="field">
-      <label for="f-question">요즘 궁금한 것 (선택)</label>
-      <textarea id="f-question" maxlength="200" placeholder="세미나에서 이야기해 보고 싶은 것이 있다면 적어주세요"></textarea>
+      <label for="f-question">루미에게 물어보고 싶은 게 뭐야? (선택)</label>
+      <textarea id="f-question" maxlength="200" placeholder="타로, 요즘 고민, 파티 이야기… 뭐든 좋아"></textarea>
     </div>
 
     <div class="consent">
@@ -150,7 +189,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
 
   <div class="panel hidden" id="panel-done">
     <div class="done">
-      <div class="big">🌙</div>
+      <div class="guide guide-done">
+        <div class="bubble"><b>루미가 곧 연락할게!!</b></div>
+        <div class="lumi-pose" id="done-lumi"><img src="/lumi-happy.webp" alt="두 손을 모으고 웃는 루미" width="98" height="170"></div>
+      </div>
       <h3>신청이 접수됐어요</h3>
       <p id="done-label"></p>
       <p><b>별빛루미</b>가 입력하신 번호로 <b>안내 문자</b>를 보내드릴게요.<br>장소와 시간을 문자로 한 번 더 확인해 주세요.</p>
@@ -226,7 +268,8 @@ function renderSessions() {
   $('sessions').innerHTML = sessions.map(s => {
     const left = Math.max(0, (s.capacity || 0) - (s.applied || 0));
     const cls = left === 0 ? 'full' : left <= 3 ? 'low' : '';
-    return `<button type="button" class="session" data-id="${esc(s.id)}" aria-pressed="${selected && selected.id === s.id}" ${left === 0 ? 'disabled' : ''}>
+    const hint = !selected && left > 0 && s === sessions.find(x => (x.capacity || 0) - (x.applied || 0) > 0);
+    return `<button type="button" class="session${hint ? ' hint' : ''}" data-id="${esc(s.id)}" aria-pressed="${selected && selected.id === s.id}" ${left === 0 ? 'disabled' : ''}>
       <span><span class="when">${esc(label(s).split(' · ')[0])}</span><br>
         <span class="where">${esc(s.place || '')}${s.title ? ` · ${esc(s.title)}` : ''}</span>
         ${s.note ? `<br><span class="note">${esc(s.note)}</span>` : ''}</span>
@@ -240,11 +283,46 @@ $('sessions').addEventListener('click', e => {
   if (!b || b.disabled) return;
   selected = sessions.find(s => s.id === b.dataset.id);
   renderSessions();
+  document.querySelector('.guide-sessions').classList.add('hidden');
+  lumiSay('ask', '별처럼 빛나는 당신의 이름은 뭐야?');
   $('selected-label').textContent = label(selected);
   $('panel-form').classList.remove('hidden');
   $('panel-form').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
   $('f-name').focus({preventScroll: true});
 });
+
+// 루미가 입력 단계마다 말을 걸고, 다 채우면 마법 막대기로 신청 버튼을 가리킨다
+const POSES = {ask: '/lumi-ask.webp', point: '/lumi-point.webp'};
+let lumiPose = 'ask', lumiText = '';
+function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function lumiSay(pose, text) {
+  const wrap = $('form-lumi'), bubble = $('form-bubble');
+  if (pose !== lumiPose) {
+    lumiPose = pose;
+    wrap.querySelector('img').src = POSES[pose];
+    wrap.querySelector('.wand-spark').classList.toggle('hidden', pose !== 'point');
+    replay(wrap, 'pop');
+  }
+  if (text !== lumiText) { lumiText = text; bubble.innerHTML = text; replay(bubble, 'say'); }
+}
+function formReady() {
+  return $('f-name').value.trim() && /^01\d{8,9}$/.test($('f-phone').value.replace(/\D/g, '')) && $('c-required').checked;
+}
+function lumiFollow(focusId) {
+  const ready = formReady();
+  $('btn-submit').classList.toggle('ready', !!ready);
+  if (ready) return lumiSay('point', '다 됐어! 아래 <b>신청하기</b> 누르고<br>파티에서 만나 ✨');
+  const lines = {
+    'f-name': '별처럼 빛나는 당신의 이름은 뭐야?',
+    'f-phone': '루미가 연락할 번호도 알려줄래?',
+    'f-question': '루미에게 물어보고 싶은 게 뭐야?',
+  };
+  if (lines[focusId]) lumiSay('ask', lines[focusId]);
+  else if (!$('c-required').checked && $('f-name').value.trim()) lumiSay('ask', '마지막으로 <b>[필수] 동의</b>에 체크해줘!');
+}
+$('panel-form').addEventListener('focusin', e => lumiFollow(e.target.id));
+$('panel-form').addEventListener('input', () => lumiFollow(document.activeElement && document.activeElement.id));
+$('panel-form').addEventListener('change', () => lumiFollow(''));
 
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-toggle]');
@@ -285,6 +363,8 @@ $('panel-form').addEventListener('submit', async e => {
     $('panel-form').classList.add('hidden');
     $('panel-done').classList.remove('hidden');
     $('panel-done').scrollIntoView({block: 'start'});
+    replay($('done-lumi'), 'pop');
+    setTimeout(() => replay($('done-lumi'), 'hop'), 700);
   } catch (e2) {
     console.error(e2);
     // 정원이 찼거나 신청이 닫힌 경우 규칙에서 거절된다
