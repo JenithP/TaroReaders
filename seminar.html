@@ -87,11 +87,19 @@ h2::before{content:'✦';color:var(--gold);font-size:.8rem}
 .guide-sessions .lumi-pose{height:132px}
 .guide-form .lumi-pose{height:100px}
 .bubble{
-  position:relative;background:#f7f2ff;color:#2a1650;font-size:.92rem;font-weight:500;line-height:1.5;
-  padding:10px 14px;border-radius:16px;margin-bottom:34px;max-width:240px;word-break:keep-all;
-  box-shadow:0 0 18px rgba(232,208,138,.35);
+  position:relative;background:#f9f5ff;color:#2a1650;font-size:1.06rem;font-weight:600;line-height:1.5;
+  padding:11px 15px;border-radius:16px;margin-bottom:30px;max-width:250px;word-break:keep-all;
+  border:1.5px solid #e8c66a;animation:goldGlow 2.2s ease-in-out infinite;
 }
-.bubble::after{content:'';position:absolute;right:-7px;bottom:16px;border:8px solid transparent;border-left-color:#f7f2ff;border-right:0}
+/* 말풍선 둘레에서 반짝이는 금빛 별 (한 글리프를 text-shadow로 여러 개 복제) */
+.bubble::before{
+  content:'✦';position:absolute;left:-9px;top:-13px;font-size:15px;line-height:1;color:#ffd96b;pointer-events:none;
+  text-shadow:0 0 6px #ffcf4a;animation:twinkle 1.3s ease-in-out infinite;
+}
+.bubble .sp{position:absolute;color:#ffd96b;font-style:normal;line-height:1;pointer-events:none;text-shadow:0 0 6px #ffcf4a;animation:twinkle 1.6s ease-in-out infinite}
+.bubble .sp.a{right:10px;top:-14px;font-size:12px;animation-delay:.5s}
+.bubble .sp.b{right:-10px;bottom:-10px;font-size:11px;animation-delay:1s}
+.bubble::after{content:'';position:absolute;right:-9px;bottom:16px;border:8px solid transparent;border-left-color:#e8c66a;border-right:0}
 .bubble b{color:#6b3fc2}
 .wand-spark{position:absolute;left:-4%;top:31%;width:18px;height:18px;pointer-events:none;
   background:radial-gradient(circle,#fff6d8 0,#ffd977 35%,transparent 70%);border-radius:50%;animation:twinkle 1.4s ease-in-out infinite}
@@ -99,18 +107,19 @@ h2::before{content:'✦';color:var(--gold);font-size:.8rem}
   background:linear-gradient(180deg,rgba(14,6,32,.98) 78%,rgba(14,6,32,0));border-radius:12px}
 .guide-done{justify-content:center;margin:0 0 6px}
 .guide-done .lumi-pose{height:170px}
-.guide-done .bubble{margin-bottom:96px;font-size:1rem}
+.guide-done .bubble{margin-bottom:96px;font-size:1.18rem}
 .pop{animation:pop .7s cubic-bezier(.2,.9,.3,1.35) both}
-.bubble.say{animation:bubbleIn .35s ease-out both}
+.bubble.say{animation:bubbleIn .35s ease-out both,goldGlow 2.2s ease-in-out .35s infinite}
 .hop{animation:hop .9s ease-out 2}
 .session.hint{animation:hintGlow 1.6s ease-in-out infinite}
 .submit.ready{animation:hintGlow 1.6s ease-in-out infinite;background:rgba(201,168,76,.28)}
 @keyframes pop{0%{transform:translateY(40px) scale(0);opacity:0}60%{transform:translateY(-8px) scale(1.12);opacity:1}80%{transform:scale(.96)}100%{transform:none}}
 @keyframes bubbleIn{from{opacity:0;transform:translateY(6px) scale(.9)}to{opacity:1;transform:none}}
 @keyframes hop{0%,100%{transform:none}30%{transform:translateY(-22px) rotate(-3deg)}55%{transform:translateY(0) scale(1.04,.96)}}
+@keyframes goldGlow{0%,100%{box-shadow:0 0 10px rgba(232,198,106,.35)}50%{box-shadow:0 0 22px rgba(255,214,110,.75),0 0 4px rgba(255,214,110,.9)}}
 @keyframes twinkle{50%{transform:scale(1.5);opacity:.5}}
 @keyframes hintGlow{50%{box-shadow:0 0 22px rgba(232,208,138,.55);border-color:var(--gold2)}}
-@media (prefers-reduced-motion:reduce){.pop,.bubble.say,.hop,.wand-spark,.session.hint,.submit.ready{animation:none}}
+@media (prefers-reduced-motion:reduce){.pop,.bubble,.bubble.say,.bubble::before,.bubble .sp,.hop,.wand-spark,.session.hint,.submit.ready{animation:none}}
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
 @media(max-width:400px){ .fact{padding:10px 4px} .fact b{font-size:.84rem} h1{font-size:1.45rem} }
 @media(max-width:320px){ .facts{grid-template-columns:1fr} }
@@ -131,7 +140,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
   <div class="panel" id="panel-sessions">
     <h2>일정 선택</h2>
     <div class="guide guide-sessions" aria-hidden="true">
-      <div class="bubble say" style="animation-delay:.55s">여기 누르고<br><b>파티에서 만나!</b> ✨</div>
+      <div class="bubble say" style="animation-delay:.55s">여기 누르고<br><b>파티에서 만나!</b> ✨<i class="sp a">✦</i><i class="sp b">✧</i></div>
       <div class="lumi-pose pop" style="animation-delay:.2s"><img src="/lumi-point.webp" alt="" width="89" height="132"><span class="wand-spark"></span></div>
     </div>
     <div id="sessions"><div class="empty">일정을 불러오는 중이에요...</div></div>
@@ -140,7 +149,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
   <form class="panel hidden" id="panel-form" novalidate>
     <h2>신청 정보</h2>
     <div class="guide guide-form" aria-hidden="true">
-      <div class="bubble say" id="form-bubble">별처럼 빛나는 당신의 이름은 뭐야?</div>
+      <div class="bubble say" id="form-bubble">별처럼 빛나는 당신의 이름은 뭐야?<i class="sp a">✦</i><i class="sp b">✧</i></div>
       <div class="lumi-pose" id="form-lumi"><img src="/lumi-ask.webp" alt="" width="65" height="100"><span class="wand-spark hidden"></span></div>
     </div>
     <div class="selected-label" id="selected-label"></div>
@@ -190,7 +199,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
   <div class="panel hidden" id="panel-done">
     <div class="done">
       <div class="guide guide-done">
-        <div class="bubble"><b>루미가 곧 연락할게!!</b></div>
+        <div class="bubble"><b>루미가 곧 연락할게!!</b><i class="sp a">✦</i><i class="sp b">✧</i></div>
         <div class="lumi-pose" id="done-lumi"><img src="/lumi-happy.webp" alt="두 손을 모으고 웃는 루미" width="98" height="170"></div>
       </div>
       <h3>신청이 접수됐어요</h3>
@@ -303,7 +312,7 @@ function lumiSay(pose, text) {
     wrap.querySelector('.wand-spark').classList.toggle('hidden', pose !== 'point');
     replay(wrap, 'pop');
   }
-  if (text !== lumiText) { lumiText = text; bubble.innerHTML = text; replay(bubble, 'say'); }
+  if (text !== lumiText) { lumiText = text; bubble.innerHTML = text + '<i class="sp a">✦</i><i class="sp b">✧</i>'; replay(bubble, 'say'); }
 }
 function formReady() {
   return $('f-name').value.trim() && /^01\d{8,9}$/.test($('f-phone').value.replace(/\D/g, '')) && $('c-required').checked;
@@ -311,7 +320,7 @@ function formReady() {
 function lumiFollow(focusId) {
   const ready = formReady();
   $('btn-submit').classList.toggle('ready', !!ready);
-  if (ready) return lumiSay('point', '다 됐어! 아래 <b>신청하기</b> 누르고<br>파티에서 만나 ✨');
+  if (ready) return lumiSay('point', '다 됐어! <b>신청하기</b> 누르고<br>파티에서 만나 ✨');
   const lines = {
     'f-name': '별처럼 빛나는 당신의 이름은 뭐야?',
     'f-phone': '루미가 연락할 번호도 알려줄래?',
