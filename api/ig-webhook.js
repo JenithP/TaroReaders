@@ -3,11 +3,12 @@
 //               팔로우 확인을 켜면 DM 은 "팔로우하고 '팔로우했어요'를 눌러주세요" 안내
 //   messages  → 안내를 받은 고객이 답장하면 팔로우를 확인하고 리딩 + 링크 버튼을 보낸다
 //               (팔로우 여부는 고객이 먼저 DM 을 보낸 뒤에만 조회할 수 있다 — Meta 정책)
+//               그 밖의 스토리 답장·DM 은 '스토리·DM' 규칙의 키워드가 있을 때만 리딩을 보낸다
 // 환경변수: IG_APP_SECRET, IG_VERIFY_TOKEN, IG_ACCESS_TOKEN(초기값), FIREBASE_SERVICE_ACCOUNT
 import crypto from 'node:crypto';
 import { waitUntil } from '@vercel/functions';
 import { IG_USER_ID, FOLLOW_PAYLOAD, FOLLOW_BUTTON } from '../lib/ig/config.js';
-import { decide, needsShortcode } from '../lib/ig/rules.js';
+import { decide, decideMessage, needsShortcode } from '../lib/ig/rules.js';
 import {
   replyToComment, sendPrivateReply, sendMessage, buttonTemplate, getUserProfile, getShortcode,
 } from '../lib/ig/graph.js';
@@ -16,6 +17,7 @@ import {
 } from '../lib/ig/store.js';
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+const ONE_DAY = 24 * 60 * 60 * 1000;
 const MAX_NOT_FOLLOWING = 3; // 팔로우 안 됨 안내는 3번까지만
 const FOLLOW_QUICK_REPLY = [{ content_type: 'text', title: FOLLOW_BUTTON, payload: FOLLOW_PAYLOAD }];
 
@@ -155,7 +157,8 @@ async function handleComment(v, entryTime) {
   console.log('[ig]', commentId, action.keyword, status, reply.error || '', dm.error || '');
 }
 
-// 고객이 보낸 DM: 팔로우 확인을 기다리는 사람일 때만 반응한다 (그 외 DM 은 운영자가 직접)
+// 고객이 보낸 DM: 팔로우 확인을 기다리는 사람이면 리딩을 보내고, 아니면 스토리·DM 키워드 규칙을 본다
+// (키워드가 없는 DM 은 운영자가 직접)
 async function handleMessage(event) {
   const igsid = event.sender?.id;
   const msg = event.message;
@@ -171,9 +174,11 @@ async function handleMessage(event) {
   // 댓글 웹훅의 ID 와 DM 의 ID 가 다르면 사용자 이름으로 찾는다
   if (!snap.exists) {
     profile = await getUserProfile(token, igsid).catch(() => null);
-    if (!profile?.username) return;
-    const q = await db().collection('ig_pending').where('username', '==', profile.username).limit(1).get();
-    if (q.empty) return;
+    const q = profile?.username
+      ? await db().collection('ig_pending').where('username', '==', profile.username).limit(1).get()
+      : null;
+    // 팔로우 확인을 기다리는 사람이 아니면: 스토리 답장·DM 키워드 규칙을 본다
+    if (!q || q.empty) return handleKeywordMessage(event, token, profile);
     ref = q.docs[0].ref;
     snap = q.docs[0];
   }
@@ -214,6 +219,65 @@ async function handleMessage(event) {
   });
   await updateComments({ status: delivered.ok ? 'done' : 'partial', delivered, followedAt: FieldValue.serverTimestamp() });
   console.log('[ig] delivered', items.map((it) => it.commentId).join(','), delivered.ok ? 'ok' : delivered.error);
+}
+
+// 스토리 답장·DM 에 키워드가 있으면 그 규칙의 리딩을 보낸다 (규칙의 적용 대상이 '스토리·DM' 또는 '둘 다')
+// 고객이 먼저 말을 걸었으므로 팔로우를 바로 확인할 수 있다. 같은 사람·같은 규칙은 하루 한 번
+async function handleKeywordMessage(event, token, profile) {
+  const igsid = event.sender.id;
+  const msg = event.message;
+  const text = msg?.text || event.postback?.title || '';
+  if (!text) return; // 사진·스티커만 보낸 경우
+  const settings = await getSettings();
+  const action = decideMessage(text, settings);
+  if (!action) return; // 키워드 없는 DM 은 운영자가 직접
+
+  const source = msg?.reply_to?.story ? 'story' : 'dm';
+  const logRef = commentRef(`dm_${igsid}_${action.rule.id || action.rule.name}`);
+  const fresh = await db().runTransaction(async (tx) => {
+    const cur = await tx.get(logRef);
+    const at = cur.exists ? cur.get('createdAt')?.toMillis?.() || 0 : 0;
+    if (at && Date.now() - at < ONE_DAY) return false;
+    tx.set(logRef, {
+      source,
+      fromId: igsid,
+      username: profile?.username || null,
+      text: String(text).slice(0, 500),
+      rule: action.rule.name || action.rule.id || '',
+      keyword: action.keyword,
+      gate: settings.followGate !== false,
+      status: 'processing',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
+  if (!fresh) return;
+
+  profile ||= await getUserProfile(token, igsid).catch(() => null);
+  if (settings.followGate !== false && !profile?.is_user_follow_business) {
+    // 팔로우 후 '팔로우했어요'를 누르면 기존 대기 흐름으로 리딩이 나간다
+    await pendingRef(igsid).set({
+      username: profile?.username || null,
+      items: [{ commentId: logRef.id, content: action.content }],
+      buttons: action.buttons,
+      buttonText: settings.buttonText,
+      notFollowingText: settings.notFollowingText,
+      notFollowingCount: 0,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    const dm = await run(() => sendMessage(token, igsid, { text: settings.gateText, quick_replies: FOLLOW_QUICK_REPLY })
+      .catch(() => sendMessage(token, igsid, { text: settings.gateText })));
+    await logRef.update({ status: dm.ok ? 'waiting' : 'failed', dm, updatedAt: FieldValue.serverTimestamp() });
+    return;
+  }
+
+  const delivered = await run(async () => {
+    if (action.content) await sendMessage(token, igsid, { text: action.content });
+    if (action.buttons?.length) return sendMessage(token, igsid, buttonTemplate(settings.buttonText || '✨', action.buttons));
+    return {};
+  });
+  await logRef.update({ status: delivered.ok ? 'done' : 'failed', delivered, updatedAt: FieldValue.serverTimestamp() });
+  console.log('[ig] keyword', source, action.keyword, delivered.ok ? 'ok' : delivered.error);
 }
 
 // 예전 형식(댓글 1건) 대기 문서도 같이 처리한다

@@ -1643,7 +1643,8 @@ async function setRole(uid, role, on) {
    ig_config/settings 에 저장 → 웹훅(api/ig-webhook)이 1분 안에 읽어 간다.
    판별 로직(lib/ig/rules.js)은 서버와 같은 파일을 import 해서 "댓글 테스트"에 쓴다.
 ═══════════════════════════════════════ */
-const IG = {lib: null, settings: null, log: [], loading: false, dirty: false, testPost: '', testText: ''};
+const IG = {lib: null, settings: null, log: [], loading: false, dirty: false, testPost: '', testText: '', testMode: 'comment'};
+const IG_CHANNELS = {comment: '게시물 댓글', dm: '스토리 답장·DM', both: '댓글 + 스토리·DM'};
 
 async function loadInstagram() {
   if (IG.loading) return;
@@ -1676,14 +1677,17 @@ function renderInstagram() {
       <div class="head">
         <label class="role-toggle"><input type="checkbox" data-ig="enabled" ${r.enabled !== false ? 'checked' : ''}> 켜기</label>
         <input class="inp" data-ig="name" maxlength="30" placeholder="규칙 이름 (메모용)" value="${esc(r.name)}">
-        <span class="badge ${r.post ? 'b-stage' : 'b-muted'}">${r.post ? '특정 게시물' : '모든 게시물'}</span>
+        <span class="badge ${r.post && IG.lib.channelOf(r) !== 'dm' ? 'b-stage' : 'b-muted'}">${IG.lib.channelOf(r) === 'dm' ? '스토리·DM' : r.post ? '특정 게시물' : '모든 게시물'}</span>
         <button class="btn sm danger" data-ig-del="${i}">삭제</button>
       </div>
       <div class="ig-grid">
         <div class="field"><label>반응할 키워드 (쉼표로 구분)</label>
           <input class="inp" data-ig="keywords" placeholder="예: 루미, 타로, 상담  /  번호 게시물은 1번" value="${esc((r.keywords || []).join(', '))}">
           <div class="hint">"1번"처럼 쓰면 1, 1️⃣, 첫번째 댓글도 잡아요</div></div>
-        <div class="field"><label>적용 게시물 (비우면 모든 게시물)</label>
+        <div class="field"><label>적용 대상</label>
+          <select class="inp" data-ig="channel">${Object.entries(IG_CHANNELS).map(([k, l]) => `<option value="${k}" ${IG.lib.channelOf(r) === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <div class="hint">스토리 답장·DM은 게시물 주소와 상관없이 키워드로만 반응하고, 같은 사람에게 하루 한 번 보내요</div></div>
+        <div class="field"><label>적용 게시물 (비우면 모든 게시물 · 댓글에만 적용)</label>
           <input class="inp" data-ig="post" placeholder="게시물 주소를 붙여넣기" value="${esc(r.post)}">
           <div class="hint">특정 게시물 규칙이 모든 게시물 규칙보다 먼저 적용돼요</div></div>
       </div>
@@ -1700,7 +1704,7 @@ function renderInstagram() {
     : `<span class="badge b-bad">${label} 실패</span>`;
   const logRows = IG.log.map(l => `<tr>
       <td class="muted">${fmt(l.createdAt)}</td><td>${esc(l.username || l.fromId)}</td>
-      <td class="wrap">${esc(l.text)}</td><td>${esc(l.rule || '')} <span class="muted small">${esc(l.keyword || '')}</span></td>
+      <td class="wrap">${l.source ? `<span class="badge b-muted">${l.source === 'story' ? '스토리 답장' : 'DM'}</span> ` : ''}${esc(l.text)}</td><td>${esc(l.rule || '')} <span class="muted small">${esc(l.keyword || '')}</span></td>
       <td>${l.status === 'processing' ? '<span class="badge b-before">처리 중</span>' : res(l.reply, '답글') + ' ' + res(l.dm, l.gate ? '안내 DM' : 'DM')}
         ${l.status === 'waiting' ? `<span class="badge b-before">팔로우 대기${l.notFollowingCount ? ` · 미팔로우 ${l.notFollowingCount}회` : ''}</span>` : ''}
         ${l.delivered ? res(l.delivered, '리딩 전달') : ''}
@@ -1712,8 +1716,9 @@ function renderInstagram() {
 
     <div class="panel">
       <h3>댓글 테스트 <span class="muted small" style="font-weight:400">저장 전 내용으로 미리 확인</span></h3>
+      <div class="chips" style="margin-bottom:10px">${[['comment', '게시물 댓글로'], ['dm', '스토리 답장·DM으로']].map(([k, l]) => `<button class="chip ${IG.testMode === k ? 'on' : ''}" data-ig-testmode="${k}">${l}</button>`).join('')}</div>
       <div class="ig-grid">
-        <div class="field"><label>댓글</label><input class="inp" id="ig-test-text" placeholder="예: 2번이요!" value="${esc(IG.testText)}"></div>
+        <div class="field"><label>${IG.testMode === 'dm' ? '보낸 메시지' : '댓글'}</label><input class="inp" id="ig-test-text" placeholder="예: 2번이요!" value="${esc(IG.testText)}"></div>
         <div class="field"><label>게시물 주소 (선택)</label><input class="inp" id="ig-test-post" placeholder="특정 게시물 규칙을 볼 때" value="${esc(IG.testPost)}"></div>
       </div>
       <div id="ig-test-out">${igTestResult()}</div>
@@ -1768,6 +1773,16 @@ function igLenLabel(r) {
 
 function igTestResult() {
   if (!IG.testText.trim()) return '<div class="hint">댓글을 입력하면 어떤 답글과 DM이 나가는지 보여드려요</div>';
+  if (IG.testMode === 'dm') {
+    const m = IG.lib.decideMessage(IG.testText, IG.settings);
+    if (!m) return '<div class="notice">반응하지 않아요 (적용 대상이 스토리·DM인 규칙 중 맞는 키워드가 없어요)</div>';
+    const st = IG.settings;
+    const btns = m.buttons.map(b => `<span class="badge b-stage" style="margin:6px 6px 0 0">${esc(b.title)}</span>`).join('');
+    return `<div class="small"><b>${esc(m.rule.name || '이름 없는 규칙')}</b> · 키워드 "${esc(m.keyword)}"</div>
+      ${st.followGate !== false ? `<div class="hint" style="margin-top:8px">팔로우하지 않은 사람에게는 먼저</div><div class="ig-preview">${esc(st.gateText)}</div>` : ''}
+      <div class="hint" style="margin-top:8px">${st.followGate !== false ? '팔로우가 확인되면' : '바로'} (${m.content.length}자)</div><div class="ig-preview">${esc(m.content) || '(본문 없음)'}</div>
+      ${btns ? `<div class="ig-preview">${esc(st.buttonText)}<div>${btns}</div></div>` : ''}`;
+  }
   const a = IG.lib.decide(IG.testText, IG.settings, IG.lib.toShortcode(IG.testPost) || null);
   if (!a) return '<div class="notice">반응하지 않아요 (맞는 키워드가 없어요)</div>';
   const st = IG.settings, head = `<div class="small"><b>${esc(a.rule.name || '이름 없는 규칙')}</b> · 키워드 "${esc(a.keyword)}"</div>
@@ -1799,6 +1814,7 @@ document.addEventListener('input', e => {
   if (f === 'keywords') r.keywords = t.value.split(/[,，\n]/).map(s => s.trim()).filter(Boolean);
   else if (f === 'replies') r.replies = t.value.split('\n');
   else r[f] = t.value;
+  if (f === 'channel') { IG.dirty = true; render(); return; }
   IG.dirty = true;
   igRefreshLive();
 });
@@ -1840,6 +1856,8 @@ document.addEventListener('click', async e => {
     IG.dirty = true; render();
     return;
   }
+  const tm = e.target.closest('[data-ig-testmode]');
+  if (tm) { IG.testMode = tm.dataset.igTestmode; render(); return; }
   if (e.target.closest('[data-ig-reload]')) {
     if (IG.dirty && !confirm('저장하지 않은 변경을 버리고 저장된 내용으로 되돌릴까요?')) return;
     IG.settings = null; render();
@@ -1850,6 +1868,7 @@ document.addEventListener('click', async e => {
       id: r.id || igId(), name: String(r.name || '').trim(), enabled: r.enabled !== false,
       post: IG.lib.toShortcode(r.post), keywords: (r.keywords || []).map(s => s.trim()).filter(Boolean),
       replies: (r.replies || []).map(s => s.trim()).filter(Boolean), dm: String(r.dm || ''), appendPromo: !!r.appendPromo,
+      channel: IG.lib.channelOf(r),
     }));
     const empty = rules.filter(r => r.enabled && !r.keywords.length);
     if (empty.length && !confirm(`키워드가 없는 규칙 ${empty.length}개는 반응하지 않아요. 그래도 저장할까요?`)) return;
