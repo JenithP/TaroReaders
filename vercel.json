@@ -6,6 +6,10 @@
       "destination": "/outputs/starry-dynamic-presentation/:path*"
     },
     {
+      "source": "/fool-journey/:path*",
+      "destination": "/outputs/fool-journey/:path*"
+    },
+    {
       "source": "/privacy",
       "destination": "/privacy.html"
     },
@@ -24,6 +28,11 @@
     {
       "source": "/presentation",
       "destination": "/presentation/index.html",
+      "permanent": false
+    },
+    {
+      "source": "/fool-journey",
+      "destination": "/fool-journey/index.html",
       "permanent": false
     },
     {
