@@ -53,6 +53,12 @@ body{cursor:pointer}
   opacity:0;transition:opacity .4s;pointer-events:none}
 .hint.on{opacity:1;animation:hintp 1.6s ease-in-out infinite}
 @keyframes hintp{50%{transform:translateX(6px);opacity:.5}}
+.spd{position:absolute;right:24px;top:18px;z-index:90;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+  background:rgba(20,14,50,.55);border:1px solid rgba(244,210,122,.35);color:#dcd3ff;font-size:17px;opacity:0;pointer-events:none;transition:opacity .4s}
+.spd.on{opacity:.45;pointer-events:auto}.spd.on:hover{opacity:1}
+.spd button{width:30px;height:30px;border-radius:50%;border:1px solid rgba(244,210,122,.6);background:transparent;color:#f4d27a;font-size:20px;line-height:1;cursor:pointer}
+.spd button:hover{background:rgba(244,210,122,.18)}
+.spd b{min-width:52px;text-align:center;color:#f4d27a;font-weight:700}
 .nav{position:absolute;left:28px;bottom:20px;display:flex;gap:8px;z-index:80;pointer-events:none}
 .nav i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.18);transition:all .4s}
 .nav i.on{background:var(--gold);box-shadow:0 0 10px var(--gold);width:26px;border-radius:6px}
@@ -219,6 +225,7 @@ body{cursor:pointer}
   <svg width="0" height="0" style="position:absolute"><filter id="bluekey" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  .2 .2 .6 0 0  1.6 1.6 -3.2 0 1"/></filter><filter id="melt" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence id="meltT" type="fractalNoise" baseFrequency="0.01 0.03" numOctaves="2" seed="3"/><feDisplacementMap id="meltD" in="SourceGraphic" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
   <div id="fx"></div>
   <div class="hint" id="hint">클릭 ▸</div>
+  <div class="spd" id="spd"><span class="lab">카드 넘김</span><button data-d="-1">−</button><b id="spdv">0.5초</b><button data-d="1">+</button></div>
   <div class="nav" id="nav"></div>
 </div>
 <script>
@@ -533,7 +540,7 @@ steps:[
     s.update(0);
     await wait(1000);
     /* 4) 0.5초마다 다음 카드로 스르륵 변신 */
-    for(let n=1;n<=21;n++){await s.morph(n);await wait(40);}
+    for(let n=1;n<=21;n++){const T=CARD_SEC*1000,md=Math.min(T-40,1200);s.tw&&(s.tw.style.transitionDuration=md+'ms');await s.morph(n,md);await wait(T-md);}
     SFX.sparkle();burst(fx,430,370,30,{spread:300});
     await wait(600);
     /* 8) 두 지팡이 중 하나를 쭉 내민다 */
@@ -1028,6 +1035,16 @@ steps:[
 ]};
 
 const SC=[S0,S1,S2,S3,S4,S5,S6];
+/* 카드 넘김 속도 (1막~3막, 카드 한 장당 초) */
+const SPD_OPTS=[0.3,0.4,0.5,0.7,1,1.5,2,3,4,5];let CARD_SEC=0.5;
+try{const v=parseFloat(localStorage.getItem('fj_card_sec'));if(SPD_OPTS.includes(v))CARD_SEC=v;}catch(e){}
+(()=>{const box=document.getElementById('spd'),val=document.getElementById('spdv');
+  const show=()=>{val.textContent=CARD_SEC+'초';};show();
+  ['click','pointerdown','keydown','keyup'].forEach(ev=>box.addEventListener(ev,e=>e.stopPropagation()));
+  box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    const i=Math.max(0,Math.min(SPD_OPTS.length-1,SPD_OPTS.indexOf(CARD_SEC)+(+b.dataset.d)));CARD_SEC=SPD_OPTS[i];show();
+    try{localStorage.setItem('fj_card_sec',CARD_SEC);}catch(e){}b.blur();}));
+  setInterval(()=>box.classList.toggle('on',cur===0),300);})();
 SC.forEach(()=>E('i','',navEl));
 
 /* ---------- input ---------- */
