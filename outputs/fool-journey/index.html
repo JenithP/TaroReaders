@@ -53,6 +53,9 @@ body{cursor:pointer}
   opacity:0;transition:opacity .4s;pointer-events:none}
 .hint.on{opacity:1;animation:hintp 1.6s ease-in-out infinite}
 @keyframes hintp{50%{transform:translateX(6px);opacity:.5}}
+.backc{position:absolute;left:24px;top:18px;z-index:90;padding:8px 16px;border-radius:999px;font:inherit;font-size:18px;cursor:pointer;
+  background:rgba(20,14,50,.6);border:1px solid rgba(244,210,122,.55);color:#f4d27a;opacity:0;pointer-events:none;transition:opacity .4s}
+.backc.on{opacity:.7;pointer-events:auto}.backc.on:hover{opacity:1;background:rgba(244,210,122,.15)}
 .spd{position:absolute;right:24px;top:18px;z-index:90;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
   background:rgba(20,14,50,.55);border:1px solid rgba(244,210,122,.35);color:#dcd3ff;font-size:17px;opacity:0;pointer-events:none;transition:opacity .4s}
 .spd.on{opacity:.45;pointer-events:auto}.spd.on:hover{opacity:1}
@@ -232,6 +235,7 @@ body{cursor:pointer}
   <svg width="0" height="0" style="position:absolute"><filter id="bluekey" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  .2 .2 .6 0 0  1.6 1.6 -3.2 0 1"/></filter><filter id="melt" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence id="meltT" type="fractalNoise" baseFrequency="0.01 0.03" numOctaves="2" seed="3"/><feDisplacementMap id="meltD" in="SourceGraphic" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
   <div id="fx"></div>
   <div class="hint" id="hint">클릭 ▸</div>
+  <button class="backc" id="backc">◂ 카드 화면으로</button>
   <div class="spd" id="spd"><span class="lab">카드 넘김</span><button data-d="-1">−</button><b id="spdv">0.5초</b><button data-d="1">+</button></div>
   <div class="nav" id="nav"></div>
 </div>
@@ -489,6 +493,32 @@ update(n){const s=this,q=k=>s.info.querySelector(k);
   [q('.num'),q('.name'),q('.kw')].forEach((e,i)=>e.animate([{opacity:0,transform:'translateY(26px) scale(.9)'},{opacity:1,transform:'none'}],{duration:260,delay:i*30,fill:'both',easing:'cubic-bezier(.2,1.5,.4,1)'}));
   s.minis.forEach((m,i)=>{m.classList.toggle('on',i<=n);m.classList.toggle('cur',i===n);});
 },
+async thrust(){const s=this;
+    /* 8) 두 지팡이 중 하나를 쭉 내민다 */
+    const k=400/600,cx=230,cy=70;const wd=E('div','wcrop',fx);s.wd=wd;
+    /* 원래 지팡이 자리를 배경색으로 덮고, 같은 자리에 지팡이를 그려 내민다 */
+    for(const [px,py] of [[437,362],[457,459]]){const pt=E('div','',s.c);place(pt,(px-13)*k,(py-33)*k,26*k,66*k);
+      pt.style.cssText+='position:absolute;background:rgb(166,193,194);filter:blur(1.5px);border-radius:8px;transform:rotate(-12deg)';}
+    place(wd,cx+(447-12)*k,cy+(410-80)*k,24*k,160*k);wd.style.transformOrigin='50% 50%';wd.style.rotate='-12deg';
+    wd.in=E('div','in',wd,`<svg viewBox="0 0 24 160" width="100%" height="100%"><rect x="7" y="8" width="10" height="144" rx="3" fill="#fbfaf4" stroke="#222" stroke-width="2"/>
+      <path d="M12 0 L19 9 L12 16 L5 9Z M12 144 L19 151 L12 160 L5 151Z" fill="#fbfaf4" stroke="#222" stroke-width="2"/></svg>`);
+    SFX.whoosh();
+    await A(wd,[{transform:'none',filter:'none'},{transform:'translate(90px,-30px) rotate(42deg) scale(2.4)',filter:'drop-shadow(0 0 14px #ffe7a0) brightness(1.25)'}],
+      {duration:1100,easing:'cubic-bezier(.3,1.6,.5,1)'});
+    SFX.sparkle();
+    wd.glow=loop(wd.in,[{filter:'drop-shadow(0 0 4px #fff3c0)'},{filter:'drop-shadow(0 0 14px #ffd76a) brightness(1.3)'},{filter:'drop-shadow(0 0 4px #fff3c0)'}],{duration:1400});
+    wd.em=every(260,()=>{const r=wd.getBoundingClientRect(),sr=stage.getBoundingClientRect(),sc=sr.width/W;
+      burst(fx,(r.left-sr.left+r.width/2)/sc,(r.top-sr.top+r.height*.25)/sc,2,{spread:50,dur:800,grav:40});});
+},
+/* 잘못 눌러 넘어갔을 때: 1막~3막 카드 화면(완료 상태)으로 바로 복귀 */
+async toCards(){const s=this;
+  s.c.classList.remove('frozen');s.frost.style.opacity=0;s.c.style.opacity=1;s.c.style.left='230px';
+  s.title.style.opacity=0;s.sub.style.opacity=0;s.c.img.src=IMG(21);
+  if(s.tw)s.tw.style.transitionDuration='0ms';s.update(21);
+  A(s.info,[{opacity:0},{opacity:1}],500).catch(()=>{});
+  A(s.track,[{opacity:0,transform:'translateY(40px)'},{opacity:1,transform:'none'}],600).catch(()=>{});
+  A(s.c,[{opacity:0,transform:'scale(.96)'},{opacity:1,transform:'none'}],500).catch(()=>{});
+  s.track.classList.add('pick');await wait(600);await s.thrust();},
 async morph(n,dur=460){/* 영상처럼 스르륵 녹아들며 다음 카드로 */
   const s=this,c=s.c;SFX.tick(n);s.update(n);
   if(s.fhole){const h=s.fhole;s.fhole=null;h.animate([{opacity:.62},{opacity:0}],{duration:dur,fill:'forwards'}).onfinish=()=>h.remove();}
@@ -563,21 +593,7 @@ steps:[
     SFX.sparkle();burst(fx,430,370,30,{spread:300});
     s.track.classList.add('pick');
     await wait(600);
-    /* 8) 두 지팡이 중 하나를 쭉 내민다 */
-    const k=400/600,cx=230,cy=70;const wd=E('div','wcrop',fx);s.wd=wd;
-    /* 원래 지팡이 자리를 배경색으로 덮고, 같은 자리에 지팡이를 그려 내민다 */
-    for(const [px,py] of [[437,362],[457,459]]){const pt=E('div','',s.c);place(pt,(px-13)*k,(py-33)*k,26*k,66*k);
-      pt.style.cssText+='position:absolute;background:rgb(166,193,194);filter:blur(1.5px);border-radius:8px;transform:rotate(-12deg)';}
-    place(wd,cx+(447-12)*k,cy+(410-80)*k,24*k,160*k);wd.style.transformOrigin='50% 50%';wd.style.rotate='-12deg';
-    wd.in=E('div','in',wd,`<svg viewBox="0 0 24 160" width="100%" height="100%"><rect x="7" y="8" width="10" height="144" rx="3" fill="#fbfaf4" stroke="#222" stroke-width="2"/>
-      <path d="M12 0 L19 9 L12 16 L5 9Z M12 144 L19 151 L12 160 L5 151Z" fill="#fbfaf4" stroke="#222" stroke-width="2"/></svg>`);
-    SFX.whoosh();
-    await A(wd,[{transform:'none',filter:'none'},{transform:'translate(90px,-30px) rotate(42deg) scale(2.4)',filter:'drop-shadow(0 0 14px #ffe7a0) brightness(1.25)'}],
-      {duration:1100,easing:'cubic-bezier(.3,1.6,.5,1)'});
-    SFX.sparkle();
-    wd.glow=loop(wd.in,[{filter:'drop-shadow(0 0 4px #fff3c0)'},{filter:'drop-shadow(0 0 14px #ffd76a) brightness(1.3)'},{filter:'drop-shadow(0 0 4px #fff3c0)'}],{duration:1400});
-    wd.em=every(260,()=>{const r=wd.getBoundingClientRect(),sr=stage.getBoundingClientRect(),sc=sr.width/W;
-      burst(fx,(r.left-sr.left+r.width/2)/sc,(r.top-sr.top+r.height*.25)/sc,2,{spread:50,dur:800,grav:40});});
+    await s.thrust();
   },
   async()=>{/* 지팡이만 남기고 모두 사라진다 */const s=S0,wd=s.wd;clearInterval(wd.em);s.track.classList.remove('pick');if(s.z){A(s.z,[{opacity:1},{opacity:0}],400).catch(()=>{});s.z=null;}
     SFX.whoosh();
@@ -1065,6 +1081,14 @@ try{const v=parseFloat(localStorage.getItem('fj_card_sec'));if(SPD_OPTS.includes
     const i=Math.max(0,Math.min(SPD_OPTS.length-1,SPD_OPTS.indexOf(CARD_SEC)+(+b.dataset.d)));CARD_SEC=SPD_OPTS[i];show();
     try{localStorage.setItem('fj_card_sec',CARD_SEC);}catch(e){}b.blur();}));
   setInterval(()=>box.classList.toggle('on',cur===0),300);})();
+/* 카드 화면으로 돌아가기 버튼: 요술봉 단계(0막 3~5단계)나 그 다음 화면 첫 부분에서 보임 */
+const canBack=()=>(cur===0&&stepIdx>=3)||(cur===1&&stepIdx<=1);
+function backToCards(){if(!canBack())return;GEN++;fx.innerHTML='';MW=null;stage.querySelectorAll('.layer,.ovl').forEach(l=>l.remove());
+  curLayer=newLayer();S0.setup(curLayer);cur=0;stepIdx=2;updateNav();run(()=>S0.toCards());}
+(()=>{const b=document.getElementById('backc');
+  ['click','pointerdown','keydown','keyup'].forEach(ev=>b.addEventListener(ev,e=>e.stopPropagation()));
+  b.addEventListener('click',()=>{ac();b.blur();backToCards();});
+  setInterval(()=>b.classList.toggle('on',canBack()),250);})();
 SC.forEach(()=>E('i','',navEl));
 
 /* ---------- input ---------- */
