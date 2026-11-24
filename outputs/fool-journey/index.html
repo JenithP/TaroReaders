@@ -82,6 +82,13 @@ body{cursor:pointer}
 .actlab{position:absolute;font-size:19px;color:var(--muted);text-align:center;border-top:2px solid rgba(185,173,223,.35);padding-top:4px;transition:color .3s,border-color .3s}
 .twalk{position:absolute;transform:scaleX(-1);transition:left .5s linear;filter:drop-shadow(0 0 6px rgba(255,230,150,.7));z-index:3}
 .twalk.still{object-fit:cover;object-position:50% 40%}
+.track.pick .mini{pointer-events:auto;cursor:pointer}
+.track.pick .mini:hover{opacity:1;filter:none;box-shadow:0 0 12px var(--gold)}
+.mini.sel{outline:3px solid var(--gold);outline-offset:2px;opacity:1;filter:none}
+.zcard{position:absolute;z-index:60;border-radius:14px;background-size:100% 100%;cursor:pointer;
+  box-shadow:0 0 0 4px rgba(244,210,122,.9),0 0 60px rgba(244,210,122,.55),0 30px 60px rgba(0,0,0,.6)}
+.zcard .zl{position:absolute;left:0;right:0;bottom:-58px;text-align:center;font-family:'Gowun Batang',serif;font-weight:700;font-size:34px;color:var(--gold);
+  text-shadow:0 0 18px rgba(0,0,0,.9)}
 .actlab.on{color:var(--gold);border-color:var(--gold)}
 .wcrop{position:absolute}
 .wcrop .in{position:absolute;inset:0}
@@ -459,6 +466,18 @@ setup(L){const s=this;s.L=L;
   s.acts=ACTS.map(([a,b,t])=>{const l=E('div','actlab',s.track,t);place(l,left+a*(mw+gap),752,(b-a+1)*(mw+gap)-gap);return l;});
   /* 막 구분선 위를 걷는 작은 바보 (번호 위치로 이동) */
   s.tx=i=>left+i*(mw+gap)+mw/2;
+  /* 1막~3막 정리 후: 작은 카드 클릭 → 크게, 다시 클릭 → 작게 */
+  s.minis.forEach((m,i)=>m.addEventListener('click',e=>{if(!s.track.classList.contains('pick'))return;e.stopPropagation();ac();s.zoom(i);}));
+  s.zoom=async i=>{const L=s.L,mini=k=>[left+k*(mw+gap),790,mw,75],BIG=[600,40,400,600];
+    const close=async z=>{z.m.classList.remove('sel');z.lab.style.opacity=0;const [x,y,w,h]=mini(z.i);SFX.whoosh&&SFX.whoosh();
+      await A(z,[{left:BIG[0]+'px',top:BIG[1]+'px',width:BIG[2]+'px',height:BIG[3]+'px',opacity:1},{left:x+'px',top:y+'px',width:w+'px',height:h+'px',opacity:.3}],{duration:420,easing:'cubic-bezier(.6,0,.4,1)'}).catch(()=>{});z.remove();};
+    if(s.z){const z=s.z;s.z=null;const same=z.i===i;await close(z);if(same)return;}
+    const z=E('div','zcard',L);z.i=i;z.m=s.minis[i];z.m.classList.add('sel');z.style.backgroundImage=`url(${IMG(i)})`;
+    z.lab=E('div','zl',z,`${i} · ${MAJ[i][0]}`);z.lab.style.opacity=0;
+    z.addEventListener('click',e=>{e.stopPropagation();if(s.z===z){s.z=null;close(z);}});
+    s.z=z;const [x,y,w,h]=mini(i);place(z,...BIG);SFX.sparkle&&SFX.sparkle();
+    await A(z,[{left:x+'px',top:y+'px',width:w+'px',height:h+'px',opacity:.4},{left:BIG[0]+'px',top:BIG[1]+'px',width:BIG[2]+'px',height:BIG[3]+'px',opacity:1}],{duration:520,easing:'cubic-bezier(.2,1.2,.4,1)'}).catch(()=>{});
+    z.lab.animate([{opacity:0,transform:'translateY(10px)'},{opacity:1,transform:'none'}],{duration:300,fill:'forwards'});};
   s.tw=E('img','twalk',s.track);s.tw.src='img/fool_walk.gif';place(s.tw,s.tx(0)-32,691,66,66);
   s.tw.onerror=()=>{s.tw.src='img/fool_cut.png';s.tw.classList.add('still');};
 },
@@ -542,6 +561,7 @@ steps:[
     /* 4) 0.5초마다 다음 카드로 스르륵 변신 */
     for(let n=1;n<=21;n++){const T=CARD_SEC*1000,md=Math.min(T-40,1200);s.tw&&(s.tw.style.transitionDuration=md+'ms');await s.morph(n,md);await wait(T-md);}
     SFX.sparkle();burst(fx,430,370,30,{spread:300});
+    s.track.classList.add('pick');
     await wait(600);
     /* 8) 두 지팡이 중 하나를 쭉 내민다 */
     const k=400/600,cx=230,cy=70;const wd=E('div','wcrop',fx);s.wd=wd;
@@ -559,7 +579,7 @@ steps:[
     wd.em=every(260,()=>{const r=wd.getBoundingClientRect(),sr=stage.getBoundingClientRect(),sc=sr.width/W;
       burst(fx,(r.left-sr.left+r.width/2)/sc,(r.top-sr.top+r.height*.25)/sc,2,{spread:50,dur:800,grav:40});});
   },
-  async()=>{/* 지팡이만 남기고 모두 사라진다 */const s=S0,wd=s.wd;clearInterval(wd.em);
+  async()=>{/* 지팡이만 남기고 모두 사라진다 */const s=S0,wd=s.wd;clearInterval(wd.em);s.track.classList.remove('pick');if(s.z){A(s.z,[{opacity:1},{opacity:0}],400).catch(()=>{});s.z=null;}
     SFX.whoosh();
     A(s.L,[{opacity:1,filter:'blur(0)'},{opacity:0,filter:'blur(12px)'}],1000).catch(()=>{});
     wd.style.rotate='0deg';await A(wd,[{transform:'translate(272px,105px) rotate(-6deg) scale(3.6)'}],{duration:1300,easing:'cubic-bezier(.6,0,.2,1)'});
