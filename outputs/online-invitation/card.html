@@ -30,7 +30,7 @@
   .chip.line { background: rgba(255, 255, 255, .7); color: #2b1d52; border: 2px solid #2b1d52; }
   .script { position: absolute; left: 72px; top: 168px; font-family: "Playfair Display", serif; font-style: italic; font-size: 64px; color: #8b5cf6; }
   h1 {
-    position: absolute; left: 68px; top: 248px; font-size: 118px; font-weight: 900; line-height: 1.08; letter-spacing: -4px;
+    position: absolute; left: 68px; top: 248px; font-size: 110px; font-weight: 900; line-height: 1.06; letter-spacing: -4px;
   }
   h1 .hl { position: relative; z-index: 0; }
   h1 .hl::after { content: ""; position: absolute; left: -6px; right: -6px; bottom: 10px; height: 34px; background: #ffb8dc; z-index: -1; border-radius: 6px; }
@@ -38,7 +38,7 @@
 
   /* 루미 */
   .lumi { position: absolute; right: 40px; top: 120px; height: 600px; filter: drop-shadow(0 20px 30px rgba(80, 50, 160, .25)); }
-  .kkami { position: absolute; right: 330px; top: 520px; height: 190px; filter: drop-shadow(0 10px 16px rgba(40, 20, 80, .25)); }
+  .kkami { position: absolute; z-index: 2; right: 318px; top: 560px; height: 190px; filter: drop-shadow(0 10px 16px rgba(40, 20, 80, .25)); }
   .sticker {
     position: absolute; right: 60px; top: 96px; width: 150px; height: 150px; border-radius: 50%;
     background: #ffde7a; display: grid; place-items: center; text-align: center; transform: rotate(12deg);
@@ -48,18 +48,17 @@
 
   /* 리딩 4번 강조 */
   .hero-pill {
-    position: absolute; left: 64px; top: 664px; width: 570px; height: 112px; display: flex; align-items: center; gap: 16px;
-    padding: 0 26px; border-radius: 30px; color: #fff;
-    background: linear-gradient(110deg, #ff6fb1, #a35cff); box-shadow: 0 14px 30px rgba(200, 80, 200, .35);
-    transform: rotate(-2deg);
+    position: absolute; left: 56px; top: 520px; width: 620px; padding: 6px 28px 22px; border-radius: 34px; color: #fff;
+    background: linear-gradient(115deg, #ff5fa8, #9d4dff); box-shadow: 0 18px 36px rgba(190, 70, 200, .4);
+    transform: rotate(-1.5deg); border: 4px solid #fff;
   }
-  .hero-pill .ico { font-size: 46px; }
-  .hero-pill .txt { flex: 1; font-size: 34px; font-weight: 900; line-height: 1.15; }
-  .hero-pill .txt small { font-size: 21px; font-weight: 500; opacity: .92; }
-  .hero-pill .big { font-size: 34px; font-weight: 900; white-space: nowrap; }
-  .hero-pill .big b { font-size: 84px; line-height: 1; color: #ffe27a; text-shadow: 0 4px 0 rgba(90, 30, 140, .35); margin: 0 4px; }
+  .hero-pill .n { font-size: 50px; font-weight: 900; letter-spacing: -1px; line-height: 1.15; white-space: nowrap; }
+  .hero-pill .n .k { font-size: 36px; letter-spacing: 0; margin-right: 4px; }
+  .hero-pill .n b { font-size: 132px; color: #ffe27a; text-shadow: 0 6px 0 rgba(90, 30, 140, .35); vertical-align: -10px; margin: 0 2px; }
+  .hero-pill .d { margin-top: 0; font-size: 28px; font-weight: 700; line-height: 1.4; }
+  .hero-pill .d em { font-style: normal; color: #ffe27a; }
   /* 프로그램 칩 */
-  .menu { position: absolute; left: 72px; top: 800px; display: flex; gap: 12px; }
+  .menu { position: absolute; left: 72px; top: 812px; display: flex; gap: 12px; }
   .menu span {
     padding: 10px 20px; border-radius: 18px; font-size: 25px; font-weight: 700;
     background: rgba(255, 255, 255, .75); border: 2px solid rgba(139, 92, 246, .25);
@@ -100,16 +99,14 @@
   <div class="tag"><span class="chip">별빛타로</span><span class="chip line">YEAR-END PARTY</span></div>
   <p class="script">you're invited ♡</p>
   <h1>타로 한 장,<br><span class="hl">연말 파티</span></h1>
-  <p class="sub">내년의 나에게 미리 물어보는 밤<br>처음이어도, 혼자여도 괜찮아요 ✨</p>
-
+  
   <img class="lumi" src="assets/lumi.png" alt="루미">
   <img class="kkami" src="assets/kkami.png" alt="까미">
   <div class="sticker">오늘<br>밤!</div>
 
   <div class="hero-pill">
-    <span class="ico">🃏</span>
-    <span class="txt">1:1 타로 리딩<br><small>한 번이 아니라 무려 네 번!</small></span>
-    <span class="big">총 <b>4</b>번</span>
+    <p class="n"><span class="k">🃏 1:1 타로 리딩</span> 총 <b>4</b>번!</p>
+    <p class="d">한 명의 리더가 아니라 <em>여러 리더에게</em><br>궁금한 거 다~ 물어보세요 💬</p>
   </div>
   <div class="menu">
     <span>📖 15분 미니 강의</span><span>🍷 뱅쇼 &amp; 디저트</span><span>🎁 루미 굿즈</span>
