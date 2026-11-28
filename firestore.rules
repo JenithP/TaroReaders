@@ -117,6 +117,24 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
     }
 
+    // ── 방명록 (guestbook.html, 방문자가 생성만) ──
+    // 이름·후기는 필수, 전화번호는 빈 값이거나 01로 시작하는 10~11자리 (커피 쿠폰 추첨용)
+    match /guestbook/{id} {
+      allow create: if request.resource.data.keys().hasOnly([
+            'name', 'review', 'phone', 'event', 'src', 'consentRequired', 'createdAt'])
+        && request.resource.data.consentRequired == true
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 20
+        && request.resource.data.review is string
+        && request.resource.data.review.size() > 0 && request.resource.data.review.size() <= 500
+        && request.resource.data.phone is string
+        && (request.resource.data.phone == '' || request.resource.data.phone.matches('^01[0-9]{8,9}$'))
+        && request.resource.data.event is string && request.resource.data.event.size() <= 40
+        && request.resource.data.src is string && request.resource.data.src.size() <= 30;
+      allow read, update, delete: if isAdmin();
+    }
+
     // ── 가입자 (관리자 페이지에 구글로 로그인한 사람) ──
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());

@@ -527,6 +527,10 @@ async function loadAll() {
     S.customers = new Map(cs.docs.map(d => [d.id, {id: d.id, ...d.data()}]));
     S.applications = as.docs.map(d => ({id: d.id, ...d.data()}));
     S.seminars = ss.docs.map(d => ({id: d.id, ...d.data()}));
+    // 방명록 (guestbook.html). 못 읽어도 나머지 화면은 그대로 보여 준다
+    S.guestbook = await getDocs(query(collection(db, 'guestbook'), orderBy('createdAt', 'desc'), limit(READINGS_LIMIT)))
+      .then(s => s.docs.map(d => ({id: d.id, ...d.data()})))
+      .catch(e => { console.warn('방명록을 불러오지 못했어요:', e.code || e.message); return []; });
     // 방문 수 (날짜·유입 코드별 카운터). 못 읽어도 나머지 화면은 그대로 보여 준다
     S.visits = await getDocs(collection(db, 'visitDays'))
       .then(s => s.docs.map(d => d.data()))
@@ -690,7 +694,7 @@ async function saveCustomer(id, patch, msg = '저장했어요') {
 function tabs() {
   const me = S.me, t = [];
   if (me.isAdmin || me.isLeader || me.isCaller) t.push(['customers', me.isAdmin ? '고객' : me.isCaller && !me.isLeader ? '내 콜링' : me.isLeader && !me.isCaller ? '내 고객' : '내 담당']);
-  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['staff', '역할 등록'], ['instagram', '인스타그램'], ['org', '조직도']);
+  if (me.isAdmin) t.push(['seminars', '세미나'], ['dashboard', '대시보드'], ['readings', '연락처 없는 리딩'], ['guestbook', '방명록'], ['staff', '역할 등록'], ['instagram', '인스타그램'], ['org', '조직도']);
   if (me.isAccounting) t.push(['ledger', '회계장부']);
   return t;
 }
@@ -708,6 +712,7 @@ function render() {
   if (S.tab === 'seminars') main.innerHTML = renderSeminars();
   if (S.tab === 'dashboard') main.innerHTML = renderDashboard();
   if (S.tab === 'readings') main.innerHTML = renderReadings();
+  if (S.tab === 'guestbook') main.innerHTML = renderGuestbook();
   if (S.tab === 'staff') main.innerHTML = renderStaff();
   if (S.tab === 'instagram') main.innerHTML = renderInstagram();
   if (S.tab === 'ledger') main.innerHTML = renderLedger();
@@ -1401,6 +1406,56 @@ function renderReadings() {
       <thead><tr><th>코드</th><th>이름</th><th>질문</th><th>유입</th><th>일시</th></tr></thead>
       <tbody>${rows}</tbody></table></div>` : '<div class="empty">없어요</div>'}`;
 }
+
+/* ── 방명록 ── */
+function renderGuestbook() {
+  const list = S.guestbook || [];
+  const withPhone = list.filter(g => g.phone).length;
+  const rows = list.map(g => `
+    <tr>
+      <td><b>${esc(g.name)}</b></td>
+      <td class="wrap">${esc(g.review)}</td>
+      <td>${g.phone ? esc(fmtPhone(g.phone)) + ` <button class="btn sm" data-gb-wipe="${esc(g.id)}" title="쿠폰 발송 후 번호 파기">번호 파기</button>` : '<span class="muted">-</span>'}</td>
+      <td class="muted">${esc(g.event || '')}${g.src ? ' · ' + esc(g.src) : ''}</td>
+      <td class="muted">${fmt(g.createdAt)}</td>
+      <td><button class="btn sm danger" data-gb-del="${esc(g.id)}">삭제</button></td>
+    </tr>`).join('');
+  return `
+    <div class="page-title">방명록 <span class="sub">후기 ${list.length}개 · 쿠폰 추첨 응모(번호 남김) ${withPhone}명</span>
+      ${withPhone ? '<button class="btn sm" data-gb-draw>☕ 커피 쿠폰 추첨</button>' : ''}</div>
+    ${list.length ? `<div class="table-wrap"><table>
+      <thead><tr><th>이름</th><th>후기</th><th>전화번호</th><th>모임·유입</th><th>일시</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div>` : '<div class="empty">아직 방명록이 없어요</div>'}`;
+}
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-gb-draw]')) {
+    const pool = (S.guestbook || []).filter(g => g.phone);
+    const n = parseInt(prompt(`번호를 남긴 ${pool.length}명 중 몇 명을 뽑을까요?`, '1'), 10);
+    if (!n || n < 1) return;
+    const picked = [...pool].sort(() => Math.random() - .5).slice(0, n);
+    alert('당첨\n\n' + picked.map(g => `${g.name}  ${fmtPhone(g.phone)}`).join('\n'));
+    return;
+  }
+  const w = e.target.closest('[data-gb-wipe]');
+  if (w) {
+    if (!confirm('이 후기의 전화번호를 지울까요? (쿠폰 발송이 끝난 뒤 파기용, 되돌릴 수 없어요)')) return;
+    try {
+      await updateDoc(doc(db, 'guestbook', w.dataset.gbWipe), {phone: ''});
+      const g = S.guestbook.find(x => x.id === w.dataset.gbWipe); if (g) g.phone = '';
+      toast('번호를 지웠어요'); render();
+    } catch (err) { toast('실패: ' + (err.code || err.message)); }
+    return;
+  }
+  const d = e.target.closest('[data-gb-del]');
+  if (d) {
+    if (!confirm('이 방명록을 삭제할까요? 되돌릴 수 없어요.')) return;
+    try {
+      await deleteDoc(doc(db, 'guestbook', d.dataset.gbDel));
+      S.guestbook = S.guestbook.filter(x => x.id !== d.dataset.gbDel);
+      toast('삭제했어요'); render();
+    } catch (err) { toast('삭제 실패: ' + (err.code || err.message)); }
+  }
+});
 
 /* ── 대시보드 ── */
 function renderDashboard() {

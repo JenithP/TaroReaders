@@ -20,6 +20,10 @@
     {
       "source": "/data-deletion",
       "destination": "/data-deletion.html"
+    },
+    {
+      "source": "/guestbook",
+      "destination": "/guestbook.html"
     }
   ],
   "crons": [

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>별빛타로 방명록</title>
+<meta name="description" content="별빛타로 모임 후기를 남겨 주세요. 전화번호를 남기면 추첨으로 모바일 커피 쿠폰을 보내드려요.">
+<meta name="theme-color" content="#100828">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Hahmlet:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#c9a84c;--gold2:#e8d08a;--text:#e8dfc8;--muted:rgba(232,223,200,.55);
+  --accent:#9b7fd4;--panel:rgba(14,6,32,.88);--line:rgba(201,168,76,.35);
+}
+html,body{background:#100828}
+body{
+  background:#100828 radial-gradient(ellipse at 50% -10%,rgba(155,127,212,.3),transparent 60%);
+  background-attachment:fixed;color:var(--text);
+  font-family:'Hahmlet','Nanum Myeongjo',serif;min-height:100vh;line-height:1.7;overflow-x:hidden;
+}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.wrap{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:30px 16px 56px}
+.eyebrow{font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.22em;color:var(--gold);text-align:center}
+h1{font-weight:700;font-size:1.75rem;color:var(--gold2);text-align:center;margin:4px 0 8px;letter-spacing:.02em;
+  text-shadow:0 0 18px rgba(232,208,138,.45)}
+.lead{text-align:center;font-size:.95rem}
+
+/* 커피 쿠폰 배너 */
+.coupon{position:relative;margin:20px 0 22px;padding:14px 16px 14px 64px;border:1.5px solid #e8c66a;border-radius:16px;
+  background:linear-gradient(120deg,rgba(232,198,106,.16),rgba(155,127,212,.14));box-shadow:0 0 18px rgba(232,198,106,.25);
+  font-size:.93rem;line-height:1.6;overflow:hidden}
+.coupon .cup{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:2rem;animation:float 2.6s ease-in-out infinite}
+.coupon b{color:#f6e3ad}
+.coupon::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.16) 50%,transparent 70%);
+  transform:translateX(-100%);animation:shine 3.8s ease-in-out infinite}
+
+h2{font-size:1.05rem;color:var(--gold2);font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+h2::before{content:'✦';color:var(--gold);font-size:.8rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 16px;margin-bottom:18px;
+  box-shadow:0 0 40px rgba(155,127,212,.14);backdrop-filter:blur(4px)}
+.field{margin-bottom:14px}
+.field label{display:flex;justify-content:space-between;align-items:baseline;font-size:.82rem;color:var(--gold);margin-bottom:6px;letter-spacing:.03em}
+.field label .opt{font-size:.72rem;color:var(--muted)}
+.field input,.field textarea{
+  width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;color:var(--text);font-family:inherit;font-size:16px;outline:none;transition:border-color .2s,box-shadow .2s;
+}
+.field textarea{min-height:120px;resize:vertical}
+.field input:focus,.field textarea:focus{border-color:var(--gold2);box-shadow:0 0 12px rgba(201,168,76,.25)}
+.field input::placeholder,.field textarea::placeholder{color:rgba(232,223,200,.32)}
+.count{text-align:right;font-size:.72rem;color:var(--muted);margin-top:3px}
+.hint{font-size:.76rem;color:var(--muted);margin-top:4px}
+.hint b{color:#f6e3ad}
+.consent{border:1px solid rgba(155,127,212,.32);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:rgba(255,255,255,.02)}
+.consent label{display:flex;gap:10px;align-items:flex-start;font-size:.86rem;cursor:pointer}
+.consent input{margin-top:5px;width:18px;height:18px;flex-shrink:0;accent-color:var(--gold)}
+.consent button{background:none;border:none;color:var(--accent);font-family:inherit;font-size:.78rem;cursor:pointer;padding:0 4px}
+.consent .detail{display:none;margin-top:8px;padding:10px 12px;background:rgba(0,0,0,.3);border-radius:6px;font-size:.75rem;line-height:1.8;color:rgba(232,223,200,.72)}
+.consent .detail.open{display:block}
+.error{min-height:1.2em;font-size:.82rem;color:#f0a8a8;text-align:center;margin:6px 0}
+.submit{
+  width:100%;padding:15px;border:1px solid var(--gold);border-radius:40px;background:rgba(201,168,76,.15);
+  color:var(--gold2);font-family:inherit;font-size:1.05rem;letter-spacing:.04em;cursor:pointer;transition:all .3s;
+}
+.submit:hover:not(:disabled){background:rgba(201,168,76,.28);box-shadow:0 0 20px rgba(201,168,76,.3)}
+.submit:disabled{opacity:.5;cursor:default}
+.submit.ready{animation:hintGlow 1.6s ease-in-out infinite;background:rgba(201,168,76,.3)}
+.notice{text-align:center;font-size:.72rem;color:var(--muted);margin-top:22px;line-height:1.7}
+.alt{display:block;text-align:center;margin-top:18px;font-size:.86rem;color:var(--accent)}
+.hidden{display:none!important}
+
+/* 루미: 말풍선 + 포즈 (입력하는 칸마다 반응) */
+.guide{display:flex;align-items:flex-end;justify-content:flex-end;gap:6px}
+.guide-form{position:sticky;top:0;z-index:3;margin:-6px -6px 10px;padding:8px 6px 4px;
+  background:linear-gradient(180deg,rgba(14,6,32,.98) 78%,rgba(14,6,32,0));border-radius:14px}
+.lumi-pose{position:relative;flex-shrink:0;height:112px;transform-origin:50% 100%}
+.lumi-pose img{display:block;height:100%;width:auto;filter:drop-shadow(0 0 14px rgba(155,127,212,.5))}
+.bubble{
+  position:relative;background:#f9f5ff;color:#2a1650;font-size:1.04rem;font-weight:600;line-height:1.5;
+  padding:11px 15px;border-radius:16px;margin-bottom:30px;max-width:250px;word-break:keep-all;
+  border:1.5px solid #e8c66a;animation:goldGlow 2.2s ease-in-out infinite;
+}
+.bubble::before{content:'✦';position:absolute;left:-9px;top:-13px;font-size:15px;line-height:1;color:#ffd96b;pointer-events:none;
+  text-shadow:0 0 6px #ffcf4a;animation:twinkle 1.3s ease-in-out infinite}
+.bubble .sp{position:absolute;color:#ffd96b;font-style:normal;line-height:1;pointer-events:none;text-shadow:0 0 6px #ffcf4a;animation:twinkle 1.6s ease-in-out infinite}
+.bubble .sp.a{right:10px;top:-14px;font-size:12px;animation-delay:.5s}
+.bubble .sp.b{right:-10px;bottom:-10px;font-size:11px;animation-delay:1s}
+.bubble::after{content:'';position:absolute;right:-9px;bottom:16px;border:8px solid transparent;border-left-color:#e8c66a;border-right:0}
+.bubble b{color:#6b3fc2}
+.wand-spark{position:absolute;left:-4%;top:31%;width:18px;height:18px;pointer-events:none;
+  background:radial-gradient(circle,#fff6d8 0,#ffd977 35%,transparent 70%);border-radius:50%;animation:twinkle 1.4s ease-in-out infinite}
+.guide-done{justify-content:center;margin:0 0 6px}
+.guide-done .lumi-pose{height:170px}
+.guide-done .bubble{margin-bottom:96px;font-size:1.15rem}
+.pop{animation:pop .7s cubic-bezier(.2,.9,.3,1.35) both}
+.bubble.say{animation:bubbleIn .35s ease-out both,goldGlow 2.2s ease-in-out .35s infinite}
+.hop{animation:hop .9s ease-out 2}
+.wiggle{animation:wiggle .6s ease-in-out}
+.done{text-align:center;padding:6px 0}
+.done h3{color:var(--gold2);font-size:1.25rem;margin:4px 0 10px;font-weight:500}
+.done p{font-size:.92rem;margin-bottom:6px}
+.done .ticket{display:inline-block;margin-top:10px;padding:8px 16px;border:1.5px dashed #e8c66a;border-radius:12px;color:#f6e3ad;font-size:.9rem;background:rgba(232,198,106,.08)}
+.burst{position:fixed;z-index:20;pointer-events:none;color:#ffd96b;text-shadow:0 0 8px #ffcf4a;font-size:16px;line-height:1}
+
+@keyframes pop{0%{transform:translateY(40px) scale(0);opacity:0}60%{transform:translateY(-8px) scale(1.12);opacity:1}80%{transform:scale(.96)}100%{transform:none}}
+@keyframes bubbleIn{from{opacity:0;transform:translateY(6px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes hop{0%,100%{transform:none}30%{transform:translateY(-22px) rotate(-3deg)}55%{transform:translateY(0) scale(1.04,.96)}}
+@keyframes wiggle{25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+@keyframes goldGlow{0%,100%{box-shadow:0 0 10px rgba(232,198,106,.35)}50%{box-shadow:0 0 22px rgba(255,214,110,.75),0 0 4px rgba(255,214,110,.9)}}
+@keyframes twinkle{50%{transform:scale(1.5);opacity:.5}}
+@keyframes hintGlow{50%{box-shadow:0 0 22px rgba(232,208,138,.55);border-color:var(--gold2)}}
+@keyframes float{50%{transform:translateY(calc(-50% - 5px)) rotate(-6deg)}}
+@keyframes shine{0%,55%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.pop,.bubble,.bubble.say,.bubble::before,.bubble .sp,.hop,.wiggle,.wand-spark,.submit.ready,.coupon .cup,.coupon::after{animation:none}}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
+@media(max-width:360px){h1{font-size:1.5rem}.lumi-pose{height:96px}.bubble{font-size:.96rem;max-width:210px}}
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="wrap">
+  <div class="eyebrow">STARLIGHT TAROT · GUESTBOOK</div>
+  <h1>별빛타로 방명록</h1>
+  <p class="lead">오늘 별빛타로와 함께한 시간, 어떠셨나요?<br>한 줄이라도 좋아요. 루미가 꼭 읽어볼게요 ✨</p>
+
+  <div class="coupon"><span class="cup" aria-hidden="true">☕</span>
+    전화번호를 남겨 주시면 <b>추첨으로<br>모바일 커피 쿠폰</b>을 보내드려요!</div>
+
+  <form class="panel" id="panel-form" novalidate>
+    <h2>후기 남기기</h2>
+    <div class="guide guide-form" aria-hidden="true">
+      <div class="bubble say" id="form-bubble">오늘 여행 어땠어?<br>루미한테 들려줘 ✨<i class="sp a">✦</i><i class="sp b">✧</i></div>
+      <div class="lumi-pose pop" id="form-lumi"><img src="/lumi-ask.webp" alt="" width="73" height="112"><span class="wand-spark hidden"></span></div>
+    </div>
+
+    <div class="field">
+      <label for="f-name">이름 <span class="opt">닉네임도 괜찮아요</span></label>
+      <input id="f-name" type="text" maxlength="20" placeholder="별처럼 빛나는 당신의 이름" autocomplete="name">
+    </div>
+    <div class="field">
+      <label for="f-review">후기</label>
+      <textarea id="f-review" maxlength="500" placeholder="기억에 남은 카드, 내 인생카드, 오늘 느낀 점… 무엇이든 좋아요"></textarea>
+      <div class="count"><span id="review-count">0</span> / 500</div>
+    </div>
+    <div class="field">
+      <label for="f-phone">전화번호 <span class="opt">선택 · 커피 쿠폰 추첨용</span></label>
+      <input id="f-phone" type="tel" inputmode="numeric" placeholder="010-0000-0000" autocomplete="tel">
+      <div class="hint">남겨 주시면 <b>추첨으로 모바일 커피 쿠폰</b>을 이 번호로 보내드려요. 비워 두셔도 후기는 남길 수 있어요.</div>
+    </div>
+
+    <div class="consent">
+      <label><input type="checkbox" id="c-required">
+        <span><b>[필수]</b> 개인정보 수집·이용에 동의합니다.<button type="button" data-toggle="d-required">내용 보기 ▾</button></span></label>
+      <div class="detail" id="d-required">
+        <b>운영:</b> 별빛타로<br>
+        <b>수집 항목:</b> 이름(닉네임), 후기, 전화번호(입력 시), 참여 모임, 유입 경로<br>
+        <b>이용 목적:</b> 모임 후기 확인 및 운영 개선, 모바일 커피 쿠폰 추첨 및 발송(전화번호를 남긴 경우)<br>
+        <b>보유 기간:</b> 후기는 수집일로부터 3년. 전화번호는 쿠폰 추첨·발송이 끝나면 지체 없이 파기합니다. 삭제를 요청하시면 바로 파기합니다.<br>
+        <b>파기 방법:</b> 전자 기록은 복구할 수 없는 방식으로 영구 삭제합니다.<br>
+        <b>처리 위탁:</b> 데이터 보관(Google Firebase)<br>
+        동의하지 않으실 수 있으나, 이 경우 방명록을 남기실 수 없습니다.
+      </div>
+    </div>
+
+    <div class="error" id="form-error" role="alert"></div>
+    <button type="submit" class="submit" id="btn-submit">방명록 남기기</button>
+  </form>
+
+  <div class="panel hidden" id="panel-done">
+    <div class="done">
+      <div class="guide guide-done">
+        <div class="bubble" id="done-bubble"><b>고마워!!</b><br>다음 여행에서 또 만나 💛<i class="sp a">✦</i><i class="sp b">✧</i></div>
+        <div class="lumi-pose" id="done-lumi"><img src="/lumi-happy.webp" alt="두 손을 모으고 웃는 루미" width="98" height="170"></div>
+      </div>
+      <h3>방명록이 저장됐어요</h3>
+      <p>소중한 후기 고맙습니다.</p>
+      <div class="ticket hidden" id="done-ticket">☕ 커피 쿠폰 추첨에 응모됐어요</div>
+    </div>
+  </div>
+
+  <a class="alt" id="link-reading" href="/">별빛타로 무료 리딩 해보기 →</a>
+  <p class="notice">별빛타로의 리딩은 자기 이해를 돕는 대화이며, 의료·심리치료가 아닙니다.</p>
+</div>
+
+<script>
+/* 반짝이는 밤하늘 */
+(() => {
+  const c = document.getElementById('sky'), x = c.getContext('2d');
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W, H, stars = [];
+  function size() {
+    const r = devicePixelRatio || 1; W = innerWidth; H = innerHeight;
+    c.width = W * r; c.height = H * r; x.setTransform(r, 0, 0, r, 0, 0);
+    stars = Array.from({length: Math.round(W * H / 5200)}, () => ({x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.3 + .3, p: Math.random() * 6.3, s: Math.random() * 1.5 + .5}));
+  }
+  function draw(t) {
+    x.clearRect(0, 0, W, H);
+    for (const s of stars) { x.globalAlpha = .35 + .65 * Math.abs(Math.sin(s.p + t / 1000 * s.s)); x.fillStyle = '#fff6dc'; x.beginPath(); x.arc(s.x, s.y, s.r, 0, 7); x.fill(); }
+    if (!still) requestAnimationFrame(draw);
+  }
+  addEventListener('resize', size); size(); requestAnimationFrame(draw);
+})();
+</script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, collection, addDoc, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// index.html / seminar.html / admin.html 과 같은 프로젝트·웹앱
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDZpaTev88ouglNnKYGzglC-xubhmbonig',
+  authDomain: 'club-member-admin-807f9.firebaseapp.com',
+  projectId: 'club-member-admin-807f9',
+  storageBucket: 'club-member-admin-807f9.firebasestorage.app',
+  messagingSenderId: '850870746617',
+  appId: '1:850870746617:web:b223c1b0c3d61adaf65128',
+};
+const db = getFirestore(initializeApp(FIREBASE_CONFIG));
+
+const $ = id => document.getElementById(id);
+const clean = (v, n) => (v || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, n);
+const params = new URLSearchParams(location.search);
+// 어느 모임에서 왔는지: QR 주소의 ?ev=fool-journey 처럼 붙인다
+const EVENT = clean(params.get('ev'), 40);
+const SRC = (() => {
+  let v = '';
+  try { v = params.get('src') || sessionStorage.getItem('bt_src') || ''; } catch (e) {}
+  v = clean(v, 30);
+  try { if (v) sessionStorage.setItem('bt_src', v); } catch (e) {}
+  return v;
+})();
+if (SRC) $('link-reading').href = '/?src=' + encodeURIComponent(SRC);
+
+/* 루미가 입력하는 칸마다 반응한다 */
+const POSES = {ask: '/lumi-ask.webp', point: '/lumi-point.webp', happy: '/lumi-happy.webp'};
+let lumiPose = 'ask', lumiText = '';
+function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function lumiSay(pose, text) {
+  const wrap = $('form-lumi'), bubble = $('form-bubble');
+  if (pose !== lumiPose) {
+    lumiPose = pose;
+    wrap.querySelector('img').src = POSES[pose];
+    wrap.querySelector('.wand-spark').classList.toggle('hidden', pose !== 'point');
+    replay(wrap, 'pop');
+  }
+  if (text !== lumiText) { lumiText = text; bubble.innerHTML = text + '<i class="sp a">✦</i><i class="sp b">✧</i>'; replay(bubble, 'say'); }
+}
+const phoneDigits = () => $('f-phone').value.replace(/\D/g, '');
+const phoneOk = () => !phoneDigits() || /^01\d{8,9}$/.test(phoneDigits());
+const formReady = () => $('f-name').value.trim() && $('f-review').value.trim() && phoneOk() && $('c-required').checked;
+
+let cheered = false;
+function lumiFollow(focusId) {
+  const ready = formReady();
+  $('btn-submit').classList.toggle('ready', !!ready);
+  if (ready) $('form-error').textContent = '';
+  if (ready) return lumiSay('point', '다 됐어!<br><b>방명록 남기기</b> 눌러줘 ✨');
+  const len = $('f-review').value.trim().length;
+  if (focusId === 'f-name') return lumiSay('ask', $('f-name').value.trim() ? `<b>${esc($('f-name').value.trim())}</b>, 반가워! 💫` : '이름이나 닉네임을<br>알려줄래?');
+  if (focusId === 'f-review') {
+    if (len >= 40) { if (!cheered) { cheered = true; replay($('form-lumi'), 'hop'); } return lumiSay('happy', '우와, 루미 지금<br><b>감동</b>했어 🥹'); }
+    if (len > 0) return lumiSay('ask', '응응, 계속 들려줘! 👂');
+    return lumiSay('ask', '어떤 카드가 제일<br>기억에 남았어?');
+  }
+  if (focusId === 'f-phone') {
+    if (!phoneDigits()) return lumiSay('ask', '번호 남기면 ☕<br><b>커피 쿠폰 추첨</b>에 쏙!');
+    if (/^01\d{8,9}$/.test(phoneDigits())) { replay($('form-lumi'), 'wiggle'); return lumiSay('happy', '추첨함에 넣었어!<br>행운을 빌어 🍀'); }
+    return lumiSay('ask', '번호를 끝까지<br>적어줘! (010…)');
+  }
+  if (!$('c-required').checked && $('f-name').value.trim() && len) lumiSay('ask', '마지막으로<br><b>[필수] 동의</b>에 체크해줘!');
+}
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+$('panel-form').addEventListener('focusin', e => lumiFollow(e.target.id));
+$('panel-form').addEventListener('input', e => {
+  if (e.target.id === 'f-review') $('review-count').textContent = e.target.value.length;
+  lumiFollow(document.activeElement && document.activeElement.id);
+});
+$('panel-form').addEventListener('change', () => lumiFollow(''));
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-toggle]');
+  if (t) $(t.dataset.toggle).classList.toggle('open');
+});
+
+/* 저장되면 별가루가 터진다 */
+function burst(x, y, n = 26) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('span'); s.className = 'burst'; s.textContent = Math.random() < .5 ? '✦' : '✧';
+    s.style.left = x + 'px'; s.style.top = y + 'px'; document.body.appendChild(s);
+    const a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 120;
+    s.animate([{transform: 'translate(-50%,-50%) scale(.4)', opacity: 1},
+      {transform: `translate(calc(-50% + ${Math.cos(a) * d}px), calc(-50% + ${Math.sin(a) * d + 40}px)) scale(1.2)`, opacity: 0}],
+      {duration: 900 + Math.random() * 500, easing: 'cubic-bezier(.2,.8,.4,1)'}).onfinish = () => s.remove();
+  }
+}
+
+$('panel-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = $('form-error');
+  const name = $('f-name').value.trim();
+  const review = $('f-review').value.trim();
+  const phone = phoneDigits();
+  if (!name) { err.textContent = '이름이나 닉네임을 적어주세요.'; $('f-name').focus(); return; }
+  if (!review) { err.textContent = '후기를 한 줄이라도 남겨주세요.'; $('f-review').focus(); return; }
+  if (!phoneOk()) { err.textContent = '전화번호를 확인해주세요. (예: 010-1234-5678) 비워 두셔도 돼요.'; $('f-phone').focus(); return; }
+  if (!$('c-required').checked) { err.textContent = '개인정보 수집·이용에 동의해주세요.'; lumiSay('ask', '마지막으로<br><b>[필수] 동의</b>에 체크해줘!'); return; }
+  err.textContent = '';
+
+  const btn = $('btn-submit');
+  btn.disabled = true; btn.textContent = '남기는 중...';
+  try {
+    await addDoc(collection(db, 'guestbook'), {
+      name, review: review.slice(0, 500), phone, event: EVENT, src: SRC,
+      consentRequired: true, createdAt: serverTimestamp(),
+    });
+    $('panel-form').classList.add('hidden');
+    $('done-ticket').classList.toggle('hidden', !phone);
+    $('panel-done').classList.remove('hidden');
+    $('panel-done').scrollIntoView({block: 'start'});
+    replay($('done-lumi'), 'pop');
+    setTimeout(() => replay($('done-lumi'), 'hop'), 700);
+    const r = $('done-lumi').getBoundingClientRect();
+    setTimeout(() => burst(r.left + r.width / 2, r.top + r.height / 3), 350);
+  } catch (e2) {
+    console.error(e2);
+    err.textContent = '저장하지 못했어요. 잠시 후 다시 시도해주세요.';
+    btn.disabled = false; btn.textContent = '방명록 남기기';
+  }
+});
+</script>
+</body>
+</html>
