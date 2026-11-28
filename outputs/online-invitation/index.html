@@ -72,6 +72,14 @@
   .hero-pill .n b { font-size: 132px; color: #ffe27a; text-shadow: 0 6px 0 rgba(90, 30, 140, .35); vertical-align: -10px; margin: 0 2px; }
   .hero-pill .d { margin-top: 0; font-size: 28px; font-weight: 700; line-height: 1.4; }
   .hero-pill .d em { font-style: normal; color: #ffe27a; }
+  .kbubble {
+    position: absolute; z-index: 3; left: 778px; top: 708px; padding: 14px 22px; border-radius: 26px 26px 26px 6px;
+    background: #fff; color: #2b1d52; font-size: 30px; font-weight: 900; line-height: 1.2; text-align: center;
+    box-shadow: 0 8px 20px rgba(43, 29, 82, .18); border: 3px solid #2b1d52; transform: rotate(3deg);
+  }
+  .kbubble em { font-style: normal; color: #a35cff; }
+  .kbubble::before { content: ""; position: absolute; left: -16px; bottom: 10px; border: 10px solid transparent; border-right: 14px solid #2b1d52; }
+  .kbubble::after { content: ""; position: absolute; left: -10px; bottom: 12px; border: 8px solid transparent; border-right: 11px solid #fff; }
   /* 프로그램 칩 */
   .menu { position: absolute; left: 72px; top: 812px; display: flex; gap: 12px; }
   .menu span {
@@ -117,6 +125,7 @@
   
   <img class="lumi" src="assets/lumi.png" alt="루미">
   <img class="kkami" src="assets/kkami.png" alt="까미">
+  <p class="kbubble"><em>인생카드</em>도<br>뽑아준대!</p>
   <div class="sticker">오늘<br>밤!</div>
 
   <div class="hero-pill">
