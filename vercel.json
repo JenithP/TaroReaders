@@ -10,6 +10,10 @@
       "destination": "/outputs/fool-journey/:path*"
     },
     {
+      "source": "/invite/:path*",
+      "destination": "/outputs/online-invitation/:path*"
+    },
+    {
       "source": "/privacy",
       "destination": "/privacy.html"
     },
@@ -33,6 +37,11 @@
     {
       "source": "/fool-journey",
       "destination": "/fool-journey/index.html",
+      "permanent": false
+    },
+    {
+      "source": "/invite",
+      "destination": "/invite/index.html",
       "permanent": false
     },
     {
