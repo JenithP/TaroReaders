@@ -856,16 +856,16 @@ class Calc{
 }
 
 /* ===================================================================
-   SCENE 4 — 예시 계산 1975.11.25
+   SCENE 4 — 예시 계산 1995.11.23
 =================================================================== */
 const S4={
 setup(L){const s=this;s.L=L;
   s.h=E('div','h2',L);place(s.h,0,70,1600);s.h.style.fontSize='54px';
-  s.C=E('div','layer',L);s.calc=new Calc(s.C,'19751125',260);
+  s.C=E('div','layer',L);s.calc=new Calc(s.C,'19951123',260);
   s.ans=E('div','ans',L);place(s.ans,0,740,1600);
 },
 steps:[
-  async()=>{const s=S4;await typeText(s.h,'예) 1975년 11월 25일생',85);await s.calc.intro();},
+  async()=>{const s=S4;await typeText(s.h,'예) 1995년 11월 23일생',85);await s.calc.intro();},
   async()=>{const s=S4;await s.calc.phase1();},
   async()=>{const s=S4;await s.calc.phase2();await wait(300);
     s.ans.innerHTML='→ 메이저 <span class="g">4번</span> · <span class="g">황제</span> THE EMPEROR';
@@ -936,7 +936,7 @@ setup(L){const s=this;s.L=L;
   s.lw=E('div','lwrap',s.face);s.la=E('img','',s.lw);s.la.src='img/lumi_emperor.jpg';s.lb=E('img','',s.lw);s.lb.src='img/lumi_emperor_wave.jpg';s.lb.style.opacity=0;
   E('div','lband',s.lw,'IV · THE EMPEROR');
   s.panel=E('div','epanel',L);place(s.panel,90,190,470);
-  s.panel.innerHTML='<div class="n">IV</div><div class="nm"></div><div class="ds"></div><div class="who">1975년 11월 25일생의<br>인생카드</div>';
+  s.panel.innerHTML='<div class="n">IV</div><div class="nm"></div><div class="ds"></div><div class="who">1995년 11월 23일생의<br>인생카드</div>';
   s.mini=E('div','mini-bub',L,'안녕~!');place(s.mini,930,95);
   s.bub=E('div','bubble',L);place(s.bub,1100,190,450);
   s.ui=E('div','calc-ui',L);place(s.ui,1100,700);
